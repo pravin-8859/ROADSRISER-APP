@@ -1,63 +1,74 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom'; // Import Link from React Router
-import logo from '../assets/logo.png'; 
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom"; // Added useNavigate
+import logo from "../assets/logo.png";
 
 const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false); // State for mobile menu toggle
-  const user = JSON.parse(localStorage.getItem("user"));
+  const [isOpen, setIsOpen] = useState(false); // Mobile menu toggle
+  const navigate = useNavigate();
 
+  // Get token & role for conditional rendering
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/auth");
+  };
 
   return (
     <nav className="bg-white shadow-md fixed w-full z-10">
-      {/* Navbar Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
+          <div
+            className="flex items-center space-x-2 cursor-pointer"
+            onClick={() => navigate("/")}
+          >
             <img src={logo} alt="RoadsRiser Logo" className="h-8 w-8 object-contain" />
             <span className="text-lg font-bold text-gray-800">RoadsRiser</span>
-          </Link>
+          </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-4">
-              <Link
-                to="/"
-                className="text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
+          <div className="hidden md:flex items-center space-x-4">
+            {["/", "/about", "/services", "/contact", "/shop"].map((path, idx) => {
+              const label = ["Home", "About", "Services", "Contact", "Shop"][idx];
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className="text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  {label}
+                </Link>
+              );
+            })}
+
+            {/* Conditional Links */}
+            {!token ? (
+              <button
+                onClick={() => navigate("/auth")}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
               >
-                Home
-              </Link>
-              <Link
-                to="/about"
-                className="text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                About
-              </Link>
-              <Link
-                to="/services"
-                className="text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Services
-              </Link>
-              <Link
-                to="/contact"
-                className="text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Contact
-              </Link>
-              <Link
-              to="/shop"
-              className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              Shop
-            </Link>
-            {user ? (
-    <Link to="/profile" className="text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium">Profile</Link>
-  ) : (
-    <Link to="/login" className="text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium">Login</Link>
-  )}
-            </div>
+                Login / Signup
+              </button>
+            ) : (
+              <>
+                {role && (
+                  <Link
+                    to={`/${role}/dashboard`}
+                    className="text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Dashboard
+                  </Link>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                >
+                  Logout
+                 </button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -107,50 +118,48 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link
-              to="/"
-              className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              Home
-            </Link>
-            <Link
-              to="/about"
-              className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              About
-            </Link>
-            <Link
-              to="/services"
-              className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              Services
-            </Link>
-            <Link
-              to="/contact"
-              className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              Contact
-            </Link>
-            <Link
-              to="/shop"
-              className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              Shop
-            </Link>
-            {user ? (
-  <Link to="/profile" className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium">Profile</Link>
-) : (
-  <Link to="/login" className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium">Login</Link>
-)}
+        <div className="md:hidden px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white shadow-md">
+          {["/", "/about", "/services", "/contact", "/shop"].map((path, idx) => {
+            const label = ["Home", "About", "Services", "Contact", "Shop"][idx];
+            return (
+              <Link
+                key={path}
+                to={path}
+                className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                {label}
+              </Link>
+            );
+          })}
 
-          </div>
+          {!token ? (
+            <button
+              onClick={() => navigate("/auth")}
+
+              className="w-full px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
+            >
+              Login / Signup
+            </button>
+          ) : (
+            <>
+              {role && (
+                <Link
+                  to={`/${role}/dashboard`}
+                  className="text-gray-700 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              )}
+              <button
+                onClick={handleLogout}
+                className="w-full px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
+              >
+                Logout
+              </button>
+            </>
+          )}
         </div>
       )}
     </nav>
