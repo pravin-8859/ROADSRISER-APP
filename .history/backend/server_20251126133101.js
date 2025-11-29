@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import adminRoutes from "./routes/adminRoutes.js";
+
 import userRoutes from "./routes/userRoutes.js";
 import mechanicRoutes from "./routes/mechanicRoutes.js";
 
@@ -16,7 +16,7 @@ const app = express();
 const allowed = ["http://localhost:5173", "http://localhost:5174"];
 app.use(
   cors({
-    origin: allowed,
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -38,7 +38,7 @@ mongoose
 // ---------------------------
 app.use("/api/users", userRoutes);
 app.use("/api/mechanics", mechanicRoutes);  // ✔ Correct path
-app.use("/api", adminRoutes);
+
 // ---------------------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
