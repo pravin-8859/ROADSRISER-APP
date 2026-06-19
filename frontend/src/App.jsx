@@ -20,6 +20,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ScrollToTop from "./components/ScrollToTop";
 import SOSButton from "./components/SOSButton";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 
 const handleHelpRequest = (data) => {
@@ -43,7 +44,14 @@ export default function App() {
           <Route path="/user/dashboard" element={<DashboardUser />} />
           <Route path="/auth/mechanic/signup" element={<MechanicSignup />} />
           <Route path="/auth/mechanic/login" element={<MechanicLogin />} />
-          <Route path="/mechanic/dashboard" element={<DashboardMechanic />} />
+          <Route
+  path="/mechanic/dashboard"
+  element={
+    <ProtectedRoute>
+      <DashboardMechanic />
+    </ProtectedRoute>
+  }
+/>
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/about" element={<About />} />
