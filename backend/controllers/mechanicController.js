@@ -1,86 +1,85 @@
-// controllers/mechanicController.js
 import Mechanic from "../models/Mechanic.js";
 import { generateOtp, hashOtp, verifyOtpHash } from "../utils/otp.js";
 import { sendEmail } from "../utils/email.js";
 import { createAccessToken, createRefreshToken } from "../utils/token.js";
 import jwt from "jsonwebtoken";
 
-const normalizePhone = (raw) => (raw ? String(raw).replace(/\D/g, "") : "");
+/* ---------------------------------- utils --------------------------------- */
+const normalizePhone = (raw) =>
+  raw ? String(raw).replace(/\D/g, "").slice(-10) : "";
 
+/* ================================ SEND OTP ================================= */
 export const sendOtp = async (req, res) => {
   try {
     const { email, phone: rawPhone } = req.body;
 
     const otp = generateOtp(4);
     const otpHash = await hashOtp(otp);
-    const expire = Date.now() + 5 * 60 * 1000;
+    const otpExpire = new Date(Date.now() + 5 * 60 * 1000);
 
-    let mech;
+    let mech = null;
 
+    /* ---------- EMAIL FLOW ---------- */
     if (email && typeof email === "string") {
       const cleanEmail = email.toLowerCase().trim();
-      mech = await Mechanic.findOne({ email: cleanEmail });
 
-      if (!mech) {
-        mech = new Mechanic({
-          email: cleanEmail,
-          otpHash,
-          otpExpire: expire,
-          isVerified: false,
-        });
-      } else {
-        mech.otpHash = otpHash;
-        mech.otpExpire = expire;
-      }
+      mech = await Mechanic.findOne({ email: cleanEmail });
+      if (!mech) mech = new Mechanic({ email: cleanEmail });
+
+      mech.otpHash = otpHash;
+      mech.otpExpire = otpExpire;
+      mech.isVerified = false;
 
       await mech.save({ validateBeforeSave: false });
 
-      const html = `
-        <div style="font-family: Arial, sans-serif; line-height:1.4">
-          <h3 style="color:#4F46E5">RoadsRiser OTP</h3>
-          <p>Your verification code is:</p>
-          <div style="font-size:22px; font-weight:700; letter-spacing:4px; background:#f3f4f6; padding:8px 12px; display:inline-block; border-radius:6px;">
-            ${otp}
-          </div>
-          <p style="color:#6b7280; margin-top:8px">This code will expire in 5 minutes.</p>
-        </div>
-      `;
+      await sendEmail({
+        to: cleanEmail,
+        subject: "Your RoadsRiser OTP",
+        html: `
+          <h3>RoadsRiser OTP</h3>
+          <p>Your OTP is <b>${otp}</b></p>
+          <p>Valid for 5 minutes</p>
+        `,
+      });
 
-      await sendEmail({ to: cleanEmail, subject: "Your RoadsRiser OTP", html });
+      console.log("MECHANIC EMAIL OTP:", otp);
 
-      if (process.env.DEBUG_SEND_OTP === "true") {
-        return res.json({ success: true, message: "OTP sent to email", debugOtp: otp });
-      }
-      return res.json({ success: true, message: "OTP sent to email" });
+      return res.json({
+        success: true,
+        message: "OTP sent to email",
+        ...(process.env.DEBUG_SEND_OTP === "true" && { debugOtp: otp }),
+      });
     }
 
-    // phone flow
+    /* ---------- PHONE FLOW ---------- */
     const phone = normalizePhone(rawPhone);
     if (!/^\d{10}$/.test(phone)) {
-      return res.status(400).json({ message: "Email required for OTP or provide valid phone" });
+      return res.status(400).json({ message: "Valid email or phone required" });
     }
 
     mech = await Mechanic.findOne({ phone });
-    if (!mech) {
-      mech = new Mechanic({ phone, otpHash, otpExpire: expire, isVerified: false });
-    } else {
-      mech.otpHash = otpHash;
-      mech.otpExpire = expire;
-    }
+    if (!mech) mech = new Mechanic({ phone });
+
+    mech.otpHash = otpHash;
+    mech.otpExpire = otpExpire;
+    mech.isVerified = false;
 
     await mech.save({ validateBeforeSave: false });
 
-    console.log("MECHANIC DEBUG OTP:", otp);
-    if (process.env.DEBUG_SEND_OTP === "true") {
-      return res.json({ success: true, message: "OTP sent to phone", debugOtp: otp });
-    }
-    return res.json({ success: true, message: "OTP sent to phone" });
+    console.log("MECHANIC PHONE OTP:", otp);
+
+    return res.json({
+      success: true,
+      message: "OTP sent to phone",
+      ...(process.env.DEBUG_SEND_OTP === "true" && { debugOtp: otp }),
+    });
   } catch (err) {
     console.error("sendOtp error:", err);
-    return res.status(500).json({ message: "OTP error" });
+    return res.status(500).json({ message: "Failed to send OTP" });
   }
 };
 
+/* ============================== MECHANIC SIGNUP ============================ */
 export const mechanicSignup = async (req, res) => {
   try {
     const {
@@ -99,64 +98,49 @@ export const mechanicSignup = async (req, res) => {
     const phone = normalizePhone(rawPhone);
     const cleanEmail = email?.toLowerCase().trim();
 
-    let mechRecord = null;
+    let mech = null;
 
-    // 1️⃣ Email-Based Signup
-    if (cleanEmail) {
-      mechRecord = await Mechanic.findOne({ email: cleanEmail });
-    }
+    if (cleanEmail) mech = await Mechanic.findOne({ email: cleanEmail });
+    if (!mech && phone) mech = await Mechanic.findOne({ phone });
 
-    // 2️⃣ Phone-Based Signup (fallback)
-    if (!mechRecord && phone) {
-      mechRecord = await Mechanic.findOne({ phone });
-    }
+    if (!mech || !mech.otpHash)
+      return res.status(400).json({ message: "OTP not requested" });
 
-    if (!mechRecord)
-      return res.status(400).json({ message: "No OTP sent for this email/phone" });
-
-    if (!mechRecord.otpHash)
-      return res.status(400).json({ message: "OTP not found" });
-
-    if (new Date() > mechRecord.otpExpire)
+    if (new Date() > mech.otpExpire)
       return res.status(400).json({ message: "OTP expired" });
 
-    // OTP Verify
-    const ok = await verifyOtpHash(otp, mechRecord.otpHash);
-    if (!ok) {
-      return res.status(400).json({ message: "Invalid OTP" });
-    }
+    const ok = await verifyOtpHash(otp, mech.otpHash);
+    if (!ok) return res.status(400).json({ message: "Invalid OTP" });
 
-    // ❗ BEFORE setting phone, check duplicate
+    /* ---- DUPLICATE PHONE CHECK (SAFE) ---- */
     if (phone) {
-      const other = await Mechanic.findOne({
+      const exists = await Mechanic.findOne({
         phone,
-        _id: { $ne: mechRecord._id } // exclude current doc
+        _id: { $ne: mech._id },
       });
-
-      if (other) {
+      if (exists)
         return res.status(400).json({ message: "Phone already registered" });
-      }
 
-      mechRecord.phone = phone;
+      mech.phone = phone;
     }
 
-    // Continue registration
-    mechRecord.name = name;
-    mechRecord.email = cleanEmail;
-    mechRecord.password = password;
-    mechRecord.gst = gst;
-    mechRecord.garageName = garageName;
-    mechRecord.address = address;
-    mechRecord.isVerified = true;
+    mech.name = name;
+    mech.email = cleanEmail;
+    mech.password = password;
+    mech.gst = gst;
+    mech.garageName = garageName;
+    mech.address = address;
+    mech.isVerified = true;
 
-    mechRecord.otpHash = undefined;
-    mechRecord.otpExpire = undefined;
+    mech.otpHash = undefined;
+    mech.otpExpire = undefined;
 
-    await mechRecord.save();
+    await mech.save();
 
     return res.json({
-      message: "Registered successfully",
-      mechanicId: mechRecord._id,
+      success: true,
+      message: "Mechanic registered successfully",
+      mechanicId: mech._id,
     });
   } catch (err) {
     console.error("mechanicSignup error:", err);
@@ -166,40 +150,53 @@ export const mechanicSignup = async (req, res) => {
   }
 };
 
-
+/* ================================ LOGIN ==================================== */
 export const mechanicLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email) return res.status(400).json({ message: "Email required" });
 
-    const mech = await Mechanic.findOne({ email: email.toLowerCase().trim() });
+    const mech = await Mechanic.findOne({
+      email: email.toLowerCase().trim(),
+    });
+
     if (!mech) return res.status(404).json({ message: "Mechanic not found" });
 
     const match = await mech.matchPassword(password);
     if (!match) return res.status(400).json({ message: "Invalid credentials" });
 
-    const access = createAccessToken(mech._id);
-    const refresh = createRefreshToken(mech._id);
+    const accessToken = createAccessToken(mech._id);
+    const refreshToken = createRefreshToken(mech._id);
 
-    mech.refreshToken = refresh;
+    mech.refreshToken = refreshToken;
     await mech.save();
 
-    res.cookie("rr_refresh", refresh, { httpOnly: true, secure: false, sameSite: "lax" });
+    res.cookie("rr_refresh", refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+    });
 
-    return res.json({ success: true, message: "Login successful", accessToken: access, mechanic: { id: mech._id, name: mech.name, email: mech.email } });
+    return res.json({
+      success: true,
+      message: "Login successful",
+      accessToken,
+      mechanic: { id: mech._id, name: mech.name, email: mech.email },
+    });
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("login error:", err);
     return res.status(500).json({ message: "Login failed" });
   }
 };
 
+/* ================================= LOGOUT ================================== */
 export const logout = async (req, res) => {
   try {
     const token = req.cookies?.rr_refresh;
     if (token) {
       const decoded = jwt.decode(token);
       if (decoded?.id) {
-        await Mechanic.findByIdAndUpdate(decoded.id, { $unset: { refreshToken: "" } });
+        await Mechanic.findByIdAndUpdate(decoded.id, {
+          $unset: { refreshToken: "" },
+        });
       }
     }
     res.clearCookie("rr_refresh");
@@ -209,5 +206,3 @@ export const logout = async (req, res) => {
     return res.status(500).json({ message: "Logout failed" });
   }
 };
-
-// refreshAccessToken etc. kept as before (add if you need)
