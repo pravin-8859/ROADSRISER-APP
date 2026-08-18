@@ -18,7 +18,7 @@ export default function MechanicLogin() {
     setErr("");
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
   e.preventDefault();
   setErr("");
 
@@ -27,21 +27,42 @@ export default function MechanicLogin() {
   }
 
   try {
-  setLoading(true);
-  const res = await loginMechanic(form);
+    setLoading(true);
 
-  // FIX: backend returns accessToken (not token)
-  localStorage.setItem("token", accessToken);
-localStorage.setItem("role", "mechanic");
+    const res = await loginMechanic({
+      email: form.email.trim().toLowerCase(),
+      password: form.password,
+    });
 
+    const accessToken = res?.data?.accessToken;
 
-  setLoading(false);
-  nav("/mechanic/dashboard");
-} catch (error) {
-  setLoading(false);
-  setErr(error.response?.data?.message || "Invalid email or password");
-}
+    if (!accessToken) {
+      throw new Error("Access token not received");
+    }
 
+    localStorage.setItem("accessToken", accessToken);
+    localStorage.setItem("role", "mechanic");
+
+    if (res?.data?.mechanic) {
+      localStorage.setItem(
+        "mechanic",
+        JSON.stringify(res.data.mechanic)
+      );
+    }
+
+    nav("/mechanic/dashboard");
+
+  } catch (error) {
+    console.error("Mechanic login error:", error);
+
+    setErr(
+      error?.response?.data?.message ||
+      error?.message ||
+      "Invalid email or password"
+    );
+  } finally {
+    setLoading(false);
+  }
 };
 
 

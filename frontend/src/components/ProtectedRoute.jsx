@@ -1,9 +1,14 @@
+import React from "react";
 import { Navigate } from "react-router-dom";
 
-const ProtectedRoute = ({ children }) => {
-  const mechanic = localStorage.getItem("mechanic");
+export default function ProtectedRoute({ children }) {
+  const token = localStorage.getItem("accessToken");
+  const role = localStorage.getItem("role");
 
-  return mechanic ? children : <Navigate to="/auth/mechanic/login" />;
-};
+  if (!token || role !== "mechanic") {
+    return <Navigate to="/auth/mechanic/login" replace />;
+  }
 
-export default ProtectedRoute;
+  return children;
+}
+//export default ProtectedRoute;

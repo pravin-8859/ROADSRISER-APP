@@ -78,14 +78,11 @@ export default function MechanicSignup() {
       const phoneTrim = form.phone.trim();
       if (/^\d{10}$/.test(phoneTrim)) payload.phone = phoneTrim;
 
-      const res = await registerMechanic(payload);
+     const res = await registerMechanic(payload);
 
-      // If backend returns token, store it
-      const token = res?.data?.token || res?.data?.accessToken || res?.data?.token;
-      if (token) localStorage.setItem("accessToken", token);
-      localStorage.setItem("role", "mechanic");
-
-      nav("/mechanic/dashboard");
+    if (res?.data?.success) {
+    nav("/auth/mechanic/login");
+  }
     } catch (e) {
       setError(e?.response?.data?.message || "Signup failed. Try again.");
     } finally {
