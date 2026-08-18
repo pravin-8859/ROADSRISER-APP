@@ -1,195 +1,413 @@
 // src/pages/user/DashboardUser.jsx
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import RequestHelp from "./RequestHelp";
 import RequestActive from "./RequestActive";
 import RequestHistory from "./RequestHistory";
 import UserProfile from "./UserProfile";
-import { FaHome, FaPlusCircle, FaHistory, FaUser, FaBars, FaBell } from "react-icons/fa";
+
+import {
+  FaHome,
+  FaPlusCircle,
+  FaHistory,
+  FaUser,
+  FaBars,
+  FaBell,
+  FaTimes,
+  FaRoad,
+} from "react-icons/fa";
+
+import { getUserProfileApi } from "../../api/userApi";
 
 export default function DashboardUser() {
   const navigate = useNavigate();
 
-  // AUTH CHECK
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("new");
+
+  const [user, setUser] = useState({
+    name: "",
+    email: "",
+  });
+
+  // ================= AUTH =================
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
-    if (!token || role !== "user") navigate("/user/login");
+
+    if (!token || role !== "user") {
+      navigate("/user/login", { replace: true });
+      return;
+    }
+
+    loadUser();
   }, [navigate]);
 
-  // Mobile sidebar state
-  const [menuOpen, setMenuOpen] = useState(false);
+  // ================= USER =================
 
-  // Tabs
-  const [activeTab, setActiveTab] = useState("new"); // new | active | history | profile
+  const loadUser = async () => {
+    try {
+      const res = await getUserProfileApi();
 
-  // Keyboard Switch
+      setUser({
+        name: res?.user?.name || "User",
+        email: res?.user?.email || "",
+      });
+    } catch (error) {
+      console.error("Failed to load user:", error);
+    }
+  };
+
+  // ================= TABS =================
+
+  const changeTab = (tab) => {
+    setActiveTab(tab);
+    setMenuOpen(false);
+  };
+
+  // ================= KEYBOARD =================
+
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === "1") setActiveTab("new");
-      if (e.key === "2") setActiveTab("active");
-      if (e.key === "3") setActiveTab("history");
-      if (e.key === "4") setActiveTab("profile");
+      if (e.key === "1") changeTab("new");
+      if (e.key === "2") changeTab("active");
+      if (e.key === "3") changeTab("history");
+      if (e.key === "4") changeTab("profile");
     };
+
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+
+    return () => {
+      window.removeEventListener("keydown", handler);
+    };
   }, []);
 
+  // ================= SIDEBAR =================
+
   const Sidebar = (
-    <aside className="w-full bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-xl h-fit">
-      {/* USER PROFILE HEADER */}
-      <div className="flex items-center gap-3 mb-6">
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
-          alt="avatar"
-          className="w-12 h-12 rounded-full"
-        />
-        <div>
-          <div className="font-bold text-lg">User</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">RoadsRiser User</div>
+    <aside className="w-full bg-[#1d293b] text-white rounded-2xl p-4 shadow-xl">
+
+      {/* BRAND */}
+
+      <div className="flex items-center gap-3 pb-5 mb-5 border-b border-white/10">
+
+        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg">
+          <FaRoad />
         </div>
+
+        <div>
+          <h2 className="font-bold text-sm">
+            RoadsRiser
+          </h2>
+
+          <p className="text-[10px] text-gray-400">
+            User Dashboard
+          </p>
+        </div>
+
       </div>
 
-      {/* TABS */}
+      {/* USER */}
+
+      <div className="flex items-center gap-3 mb-6 px-1">
+
+        <div className="w-10 h-10 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center font-bold">
+          {(user.name || "U")
+            .charAt(0)
+            .toUpperCase()}
+        </div>
+
+        <div className="min-w-0">
+
+          <p className="font-semibold text-sm truncate">
+            {user.name || "User"}
+          </p>
+
+          <p className="text-[10px] text-gray-400 truncate">
+            {user.email || "Customer"}
+          </p>
+
+        </div>
+
+      </div>
+
+      {/* MENU */}
+
       <nav className="space-y-2">
-        <button
-          onClick={() => {
-            setActiveTab("new");
-            setMenuOpen(false);
-          }}
-          className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition ${
-            activeTab === "new" ? "bg-indigo-600 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-          }`}
-        >
-          <FaPlusCircle /> New Request
-        </button>
+
+        {/* NEW */}
 
         <button
-          onClick={() => {
-            setActiveTab("active");
-            setMenuOpen(false);
-          }}
-          className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition ${
-            activeTab === "active" ? "bg-indigo-600 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+          onClick={() => changeTab("new")}
+          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
+            activeTab === "new"
+              ? "bg-indigo-600 text-white shadow-lg"
+              : "text-gray-300 hover:bg-white/5"
           }`}
         >
-          <FaHome /> Active Request
+          <FaPlusCircle />
+          <span>New Request</span>
         </button>
 
-        <button
-          onClick={() => {
-            setActiveTab("history");
-            setMenuOpen(false);
-          }}
-          className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition ${
-            activeTab === "history" ? "bg-indigo-600 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-          }`}
-        >
-          <FaHistory /> History
-        </button>
+        {/* ACTIVE */}
 
         <button
-          onClick={() => {
-            setActiveTab("profile");
-            setMenuOpen(false);
-          }}
-          className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition ${
-            activeTab === "profile" ? "bg-indigo-600 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+          onClick={() => changeTab("active")}
+          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
+            activeTab === "active"
+              ? "bg-indigo-600 text-white shadow-lg"
+              : "text-gray-300 hover:bg-white/5"
           }`}
         >
-          <FaUser /> Profile
+          <FaHome />
+          <span>Active Request</span>
         </button>
+
+        {/* HISTORY */}
+
+        <button
+          onClick={() => changeTab("history")}
+          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
+            activeTab === "history"
+              ? "bg-indigo-600 text-white shadow-lg"
+              : "text-gray-300 hover:bg-white/5"
+          }`}
+        >
+          <FaHistory />
+          <span>Service History</span>
+        </button>
+
+        {/* PROFILE */}
+
+        <button
+          onClick={() => changeTab("profile")}
+          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
+            activeTab === "profile"
+              ? "bg-indigo-600 text-white shadow-lg"
+              : "text-gray-300 hover:bg-white/5"
+          }`}
+        >
+          <FaUser />
+          <span>My Profile</span>
+        </button>
+
       </nav>
 
-      {/* Tip */}
-      <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-        Tip: Press 1/2/3/4 to switch tabs.
+      {/* HELP */}
+
+      <div className="mt-6 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/10">
+
+        <p className="text-[10px] leading-relaxed text-indigo-300">
+          Need roadside help? Create a request and get assistance from a nearby mechanic.
+        </p>
+
       </div>
+
+      {/* KEYBOARD */}
+
+      <p className="text-[9px] text-gray-500 mt-4 text-center">
+        Press 1 / 2 / 3 / 4 to switch tabs
+      </p>
+
     </aside>
   );
 
+  // ================= PAGE =================
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen bg-[#050914] text-white">
 
-      {/* MOBILE SIDEBAR OPEN BUTTON (moved down to avoid navbar overlap) */}
-      <button
-        className="md:hidden fixed top-[140px] left-6 z-40 bg-indigo-600 text-white p-3 rounded-full shadow-lg"
-        onClick={() => setMenuOpen(true)}
-        aria-label="Open menu"
-      >
-        <FaBars size={20} />
-      </button>
+      {/* ================= MOBILE HEADER ================= */}
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 p-6">
+      <div className="md:hidden sticky top-0 z-40 bg-[#080d18]/95 backdrop-blur-md border-b border-white/10">
 
-        {/* SIDEBAR - DESKTOP */}
-        <div className="hidden md:block md:col-span-3 lg:col-span-2 sticky top-28">
-          {Sidebar}
+        <div className="flex items-center justify-between px-4 py-3">
+
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg"
+            aria-label="Open menu"
+          >
+            <FaBars />
+          </button>
+
+          <div className="text-center">
+
+            <p className="text-[10px] text-indigo-400">
+              RoadsRiser
+            </p>
+
+            <h2 className="font-bold text-sm">
+              {activeTab === "new"
+                ? "New Request"
+                : activeTab === "active"
+                ? "Active Request"
+                : activeTab === "history"
+                ? "Service History"
+                : "My Profile"}
+            </h2>
+
+          </div>
+
+          <button
+            className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center"
+            aria-label="Notifications"
+          >
+            <FaBell size={15} />
+          </button>
+
         </div>
 
-        {/* SIDEBAR - MOBILE DRAWER */}
-        {menuOpen && (
-          <>
-            {/* Backdrop: close on click */}
-            <div
-              onClick={() => setMenuOpen(false)}
-              className="fixed inset-0 bg-black/40 z-40"
-              aria-hidden="true"
-            />
+      </div>
 
-            <div className="md:hidden fixed top-0 left-0 w-3/4 h-full bg-white dark:bg-gray-900 shadow-2xl p-5 z-50 animate-slide">
-              {/* CLOSE BUTTON */}
+      {/* ================= MOBILE DRAWER ================= */}
+
+      {menuOpen && (
+        <>
+
+          {/* BACKDROP */}
+
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+            onClick={() => setMenuOpen(false)}
+          />
+
+          {/* DRAWER */}
+
+          <div className="fixed top-0 left-0 bottom-0 w-[82%] max-w-[320px] bg-[#0b1220] z-[60] p-4 shadow-2xl overflow-y-auto animate-sidebar">
+
+            {/* CLOSE */}
+
+            <div className="flex justify-end mb-3">
+
               <button
-                className="absolute top-4 right-4 text-xl text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 p-1 rounded-full shadow"
                 onClick={() => setMenuOpen(false)}
-                aria-label="Close menu"
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-gray-300 hover:bg-red-500/20 hover:text-red-400"
               >
-                ✖
+                <FaTimes />
               </button>
 
-              {Sidebar}
             </div>
-          </>
-        )}
 
-        {/* RIGHT CONTENT */}
-        <main className="md:col-span-9 lg:col-span-10 md:ml-2">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl">
-            {/* HEADER */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-bold">Welcome back</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Manage requests, track mechanics and view history
-                </p>
+            {Sidebar}
+
+          </div>
+
+        </>
+      )}
+
+      {/* ================= MAIN ================= */}
+
+      <div className="max-w-[1450px] mx-auto flex gap-5 p-4 md:p-5 lg:p-6">
+
+        {/* DESKTOP SIDEBAR */}
+
+        <div className="hidden md:block w-[220px] lg:w-[240px] shrink-0">
+
+          <div className="sticky top-5">
+            {Sidebar}
+          </div>
+
+        </div>
+
+        {/* CONTENT */}
+
+        <main className="flex-1 min-w-0">
+
+          <div className="bg-[#162235] rounded-2xl border border-white/5 shadow-2xl overflow-hidden">
+
+            {/* CONTENT HEADER */}
+
+            <div className="px-5 md:px-6 py-5 border-b border-white/5">
+
+              <div className="flex items-center justify-between gap-4">
+
+                <div className="min-w-0">
+
+                  <p className="text-xs text-indigo-400 font-medium mb-1">
+                    Customer Dashboard
+                  </p>
+
+                  <h1 className="text-xl md:text-2xl font-bold truncate">
+
+                    {activeTab === "new"
+                      ? `Welcome back, ${user.name || "User"} 👋`
+                      : activeTab === "active"
+                      ? "Active Roadside Request"
+                      : activeTab === "history"
+                      ? "Service History"
+                      : "My Profile"}
+
+                  </h1>
+
+                  <p className="text-xs text-gray-400 mt-1 hidden sm:block">
+                    Manage your roadside assistance services easily.
+                  </p>
+
+                </div>
+
+                <button
+                  className="hidden md:flex w-10 h-10 rounded-xl bg-white/5 items-center justify-center hover:bg-white/10 transition"
+                  aria-label="Notifications"
+                >
+                  <FaBell size={14} />
+                </button>
+
               </div>
 
-              <button className="px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Notifications">
-                <FaBell />
-              </button>
             </div>
 
             {/* TAB CONTENT */}
-            <div className="mt-4">
-              {activeTab === "new" && <RequestHelp onSuccess={() => setActiveTab("active")} />}
-              {activeTab === "active" && <RequestActive />}
-              {activeTab === "history" && <RequestHistory />}
-              {activeTab === "profile" && <UserProfile />}
+
+            <div className="p-4 md:p-6">
+
+              {activeTab === "new" && (
+                <RequestHelp
+                  onSuccess={() => setActiveTab("active")}
+                />
+              )}
+
+              {activeTab === "active" && (
+                <RequestActive />
+              )}
+
+              {activeTab === "history" && (
+                <RequestHistory />
+              )}
+
+              {activeTab === "profile" && (
+                <UserProfile />
+              )}
+
             </div>
+
           </div>
+
         </main>
+
       </div>
 
-      {/* ANIMATION STYLE */}
+      {/* SIDEBAR ANIMATION */}
+
       <style>{`
-        @keyframes slide {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0%); }
+        @keyframes sidebarSlide {
+          from {
+            transform: translateX(-100%);
+          }
+
+          to {
+            transform: translateX(0);
+          }
         }
-        .animate-slide {
-          animation: slide 0.28s ease-out;
+
+        .animate-sidebar {
+          animation: sidebarSlide 0.25s ease-out;
         }
       `}</style>
+
     </div>
   );
 }

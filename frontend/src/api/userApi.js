@@ -1,73 +1,75 @@
-import axios from "axios";
+import API from "../services/api";
 
-// Base URL for backend
-const BASE_URL = "http://localhost:5000/api/users";
+// ================= USER AUTH =================
 
-// ------------------------------------
-// USER AUTH (Your existing functions)
-// ------------------------------------
 export const loginUser = async (email, password) => {
-  try {
-    const res = await axios.post(`${BASE_URL}/login`, { email, password });
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("role", "user");
-    return res.data;
-  } catch (error) {
-    console.error(error.response?.data?.message || error.message);
-    throw error;
-  }
+  const res = await API.post("/users/login", {
+    email: email.trim().toLowerCase(),
+    password,
+  });
+
+  localStorage.setItem("token", res.data.token);
+  localStorage.setItem("role", "user");
+
+  return res.data;
 };
 
-export const registerUser = async (name, email, password) => {
-  try {
-    const res = await axios.post(`${BASE_URL}/register`, {
-      name,
-      email,
-      password,
-    });
-    return res.data;
-  } catch (error) {
-    console.error(error.response?.data?.message || error.message);
-    throw error;
-  }
+export const registerUser = async (
+  name,
+  email,
+  password,
+  phone
+) => {
+  const res = await API.post("/users/register", {
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    password,
+    phone: phone?.trim() || undefined,
+  });
+
+  return res.data;
 };
 
-// ------------------------------------
-// DASHBOARD APIs (Required functions)
-// ------------------------------------
+// ================= PROFILE =================
 
-// Fetch active roadside request
+export const getUserProfileApi = async () => {
+  const res = await API.get("/users/me");
+  return res.data;
+};
+
+export const updateUserProfileApi = async (data) => {
+  const res = await API.put("/users/me", data);
+  return res.data;
+};
+
+// ================= REQUESTS =================
+
 export const getActiveRequestApi = async () => {
-  const token = localStorage.getItem("token");
-  const res = await axios.get(`${BASE_URL}/requests/active`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await API.get("/users/requests/active");
   return res.data;
 };
 
-// Fetch service history
 export const getHistoryApi = async () => {
-  const token = localStorage.getItem("token");
-  const res = await axios.get(`${BASE_URL}/requests/history`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await API.get("/users/requests/history");
   return res.data;
 };
 
-// Fetch notifications
-export const getNotificationsApi = async () => {
-  const token = localStorage.getItem("token");
-  const res = await axios.get(`${BASE_URL}/notifications`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
-};
-
-// Create new roadside request
 export const createRequestApi = async (data) => {
-  const token = localStorage.getItem("token");
-  const res = await axios.post(`${BASE_URL}/requests`, data, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await API.post("/users/requests", data);
+  return res.data;
+};
+
+// ================= NOTIFICATIONS =================
+
+export const getNotificationsApi = async () => {
+  const res = await API.get("/users/notifications");
+  return res.data;
+};
+
+export const markNotificationReadApi = async (id) => {
+  const res = await API.post(
+    `/users/notifications/${id}/read`
+  );
+
   return res.data;
 };

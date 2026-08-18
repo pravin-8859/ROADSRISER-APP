@@ -155,35 +155,77 @@ export const mechanicLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
     const mech = await Mechanic.findOne({
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
     });
 
-    if (!mech) return res.status(404).json({ message: "Mechanic not found" });
+    if (!mech) {
+      return res.status(404).json({
+        message: "Mechanic not found",
+      });
+    }
 
     const match = await mech.matchPassword(password);
-    if (!match) return res.status(400).json({ message: "Invalid credentials" });
+
+    if (!match) {
+      return res.status(400).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    if (!mech.isVerified) {
+      return res.status(403).json({
+        message: "Mechanic account is not verified",
+      });
+    }
 
     const accessToken = createAccessToken(mech._id);
     const refreshToken = createRefreshToken(mech._id);
 
     mech.refreshToken = refreshToken;
+
     await mech.save();
 
     res.cookie("rr_refresh", refreshToken, {
       httpOnly: true,
       sameSite: "lax",
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.json({
       success: true,
       message: "Login successful",
+
       accessToken,
-      mechanic: { id: mech._id, name: mech.name, email: mech.email },
+
+      mechanic: {
+        id: mech._id,
+        name: mech.name || "",
+        email: mech.email || "",
+        phone: mech.phone || "",
+        garageName: mech.garageName || "",
+        gst: mech.gst || "",
+        address: mech.address || "",
+        profilePhoto: mech.profilePhoto || "",
+        isVerified: mech.isVerified,
+      },
     });
+
   } catch (err) {
-    console.error("login error:", err);
-    return res.status(500).json({ message: "Login failed" });
+    console.error("mechanicLogin error:", err);
+
+    return res.status(500).json({
+      message: "Login failed",
+    });
   }
 };
 
