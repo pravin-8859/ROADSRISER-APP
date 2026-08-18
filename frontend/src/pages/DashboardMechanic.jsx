@@ -1229,6 +1229,8 @@ function RequestCard({
 
       </div>
 
+      <RequestLocationMap request={request} />
+
       {!compact && (
         <div className="mt-5 pt-4 border-t dark:border-gray-800">
 
@@ -1252,6 +1254,48 @@ function RequestCard({
         </div>
       )}
 
+    </div>
+  );
+}
+
+/* =========================================================
+   REQUEST LOCATION MAP
+========================================================= */
+
+function RequestLocationMap({ request }) {
+  const hasCoordinates =
+    Number.isFinite(request?.latitude) &&
+    Number.isFinite(request?.longitude);
+
+  if (!hasCoordinates) return null;
+
+  const embedUrl =
+    `https://www.google.com/maps?q=${request.latitude},${request.longitude}&z=15&output=embed`;
+
+  return (
+    <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+      <div className="relative w-full h-56 sm:h-64">
+        <iframe
+          title={`Customer location - ${request.customer || "Roadside User"}`}
+          src={embedUrl}
+          className="w-full h-full border-0"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          allowFullScreen
+        />
+
+        {request.mapsUrl && (
+          <a
+            href={request.mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute bottom-3 left-3 right-3 sm:right-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-gray-900 shadow-lg border border-gray-200 text-sm font-semibold hover:bg-gray-50"
+          >
+            <FaMapMarkerAlt className="text-indigo-600" />
+            Open in Google Maps
+          </a>
+        )}
+      </div>
     </div>
   );
 }
@@ -1320,6 +1364,8 @@ function AssignedJobsPage({
                     )}
 
                   </div>
+
+                  <RequestLocationMap request={job} />
 
                 </div>
 
@@ -2265,6 +2311,12 @@ function mapApiRequest(request) {
     status: "Open",
     sos: false,
     estimatedCharge: request.fare || 0,
+    latitude: Number.isFinite(lat) ? lat : null,
+    longitude: Number.isFinite(lng) ? lng : null,
+    mapsUrl:
+      Number.isFinite(lat) && Number.isFinite(lng)
+        ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+        : "",
   };
 }
 
@@ -2298,6 +2350,12 @@ function mapApiJob(request) {
         : "Location unavailable"),
     status,
     estimatedCharge: request.fare || 0,
+    latitude: Number.isFinite(lat) ? lat : null,
+    longitude: Number.isFinite(lng) ? lng : null,
+    mapsUrl:
+      Number.isFinite(lat) && Number.isFinite(lng)
+        ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+        : "",
   };
 }
 
