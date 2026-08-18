@@ -2,16 +2,26 @@ import jwt from "jsonwebtoken";
 
 export const createAccessToken = (id) => {
   return jwt.sign(
-    { id, type: "mechanic" },
+    {
+      id: String(id),
+      type: "mechanic",
+    },
     process.env.JWT_ACCESS_SECRET,
-    { expiresIn: "15m" }
+    {
+      expiresIn: "15m",
+    }
   );
 };
 
 export const createRefreshToken = (id) => {
   return jwt.sign(
-    { id, type: "mechanic" },
+    {
+      id: String(id),
+      type: "mechanic",
+    },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
+    {
+      expiresIn: "7d",
+    }
   );
 };

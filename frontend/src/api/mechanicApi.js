@@ -5,77 +5,76 @@ const API = axios.create({
   withCredentials: true,
 });
 
-API.interceptors.request.use((req) => {
-  const token = localStorage.getItem("accessToken");
+// Access token automatically attach hoga
+API.interceptors.request.use(
+  (req) => {
+    const token =
+      localStorage.getItem("accessToken") ||
+      localStorage.getItem("token");
 
-  if (token) {
-    req.headers.Authorization = `Bearer ${token}`;
-  }
+    if (token) {
+      req.headers.Authorization = `Bearer ${token}`;
+    }
 
-  return req;
-});
+    return req;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ================= OTP =================
 
 export const sendOtp = ({ email, phone, purpose = "signup" }) =>
-  API.post("/otp/send", { email, phone, purpose });
+  API.post("/otp/send", {
+    email,
+    phone,
+    purpose,
+  });
+
+// ================= AUTH =================
 
 export const registerMechanic = (payload) =>
   API.post("/mechanics/register", payload);
 
-export const loginMechanic = (data) =>
-  API.post("/mechanics/login", data);
+export const loginMechanic = async (data) => {
+  const res = await API.post("/mechanics/login", data);
 
-export const logout = () =>
-  API.post("/mechanics/logout");
+  const token =
+    res.data?.accessToken ||
+    res.data?.token ||
+    res.data?.access;
+
+  if (token) {
+    localStorage.setItem("accessToken", token);
+    localStorage.setItem("role", "mechanic");
+  }
+
+  return res;
+};
+
+export const logout = async () => {
+  try {
+    await API.post("/mechanics/logout");
+  } finally {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+  }
+};
+
+// ================= MECHANIC REQUESTS =================
+
+// Pending + assigned requests
+export const getMechanicRequests = () =>
+  API.get("/mechanics/requests");
+
+// Accept request
+export const acceptMechanicRequest = (id) =>
+  API.put(`/mechanics/requests/${id}/accept`);
+
+// Update request status
+export const updateMechanicRequestStatus = (id, status) =>
+  API.put(`/mechanics/requests/${id}/status`, {
+    status,
+  });
 
 export default API;
-
-
-// // src/api/mechanicApi.js
-// import axios from "axios";
-
-// const API = axios.create({
-//   baseURL: "http://localhost:5000/api", // root api
-//   withCredentials: true,
-// });
-
-// // attach access token if present (key: accessToken)
-// API.interceptors.request.use((req) => {
-//   const tok = localStorage.getItem("accessToken") || localStorage.getItem("token");
-//   if (tok) req.headers.Authorization = `Bearer ${tok}`;
-//   return req;
-// });
-
-// API.interceptors.response.use(
-//   (res) => res,
-//   async (err) => {
-//     // simple refresh handling if needed (optional)
-//     if (err.response && err.response.status === 401 && !err.config.__isRetry) {
-//       err.config.__isRetry = true;
-//       try {
-//         const refresh = await API.get("/mechanics/refresh");
-//         localStorage.setItem("accessToken", refresh.data.accessToken);
-//         err.config.headers.Authorization = `Bearer ${refresh.data.accessToken}`;
-//         return API(err.config);
-//       } catch (e) {
-//         return Promise.reject(err);
-//       }
-//     }
-//     return Promise.reject(err);
-//   }
-// );
-
-// // OTP - call otp route
-// export const sendOtp = ({ email, phone, purpose = "signup" }) =>
-//   API.post("/otp/send", { email, phone, purpose });
-
-// // Register/login under mechanics
-// export const registerMechanic = (payload) => API.post("/mechanics/register", payload);
-// export const loginMechanic = async (data) => {
-//   const res = await API.post("/mechanics/login", data);
-//   // backend may return token in res.data.token or res.data.accessToken — handle both
-//   const tok = res.data.token || res.data.accessToken || res.data.access;
-//   if (tok) localStorage.setItem("accessToken", tok);
-//   return res;
-// };
-// export const refresh = () => API.get("/mechanics/refresh");
-// export const logout = () => API.post("/mechanics/logout");

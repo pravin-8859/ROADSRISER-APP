@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
+import {
+  getMechanicRequests,
+  acceptMechanicRequest,
+  updateMechanicRequestStatus,
+} from "../api/mechanicApi";
 
 /*
 DashboardMechanicFull.jsx
@@ -11,8 +16,8 @@ export default function DashboardMechanicFull() {
   const [dark, setDark] = useState(true);
   const [activeMenu, setActiveMenu] = useState("Dashboard");
 
-  const [requests, setRequests] = useState(sampleRequests());
-  const [assignedJobs, setAssignedJobs] = useState(sampleAssigned());
+  const [requests, setRequests] = useState([]);
+  const [assignedJobs, setAssignedJobs] = useState([]);
   const [inventory, setInventory] = useState(sampleInventory());
   const [earnings, setEarnings] = useState(sampleEarnings());
   const [profile, setProfile] = useState(sampleProfile());
@@ -29,14 +34,45 @@ export default function DashboardMechanicFull() {
   }, [dark]);
 
   useEffect(() => {
+    loadRequests();
+
     const id = setInterval(() => {
-      const r = makeRandomRequest();
-      setRequests((p) => [r, ...p]);
-      notify(`New request: ${r.issue} • ${r.distance}`, r.sos ? "high" : "normal");
-      if (r.sos) playBeep(880, 0.3);
-    }, 25000);
+      loadRequests();
+    }, 15000);
+
     return () => clearInterval(id);
   }, []);
+
+  async function loadRequests(showError = false) {
+    try {
+      const res = await getMechanicRequests();
+      const data = res?.data?.requests || [];
+
+      const pending = data
+        .filter((r) => r.status === "pending" && !r.mechanic)
+        .map(mapApiRequest);
+
+      const assigned = data
+        .filter(
+          (r) =>
+            r.status === "accepted" ||
+            r.status === "enroute"
+        )
+        .map(mapApiJob);
+
+      setRequests(pending);
+      setAssignedJobs(assigned);
+    } catch (error) {
+      console.error("Failed to load mechanic requests:", error);
+
+      if (showError) {
+        notify(
+          error?.response?.data?.message || "Could not load requests",
+          "warn"
+        );
+      }
+    }
+  }
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -58,58 +94,113 @@ export default function DashboardMechanicFull() {
     }
   }, [assignedJobs]);
 
-  function acceptRequest(id) {
-    const req = requests.find((r) => r.id === id);
-    if (!req) return;
+  async function acceptRequest(id) {
+    try {
+      const res = await acceptMechanicRequest(id);
+      const accepted = res?.data?.request;
 
-    setRequests((p) => p.filter((x) => x.id !== id));
+      if (accepted) {
+        const job = mapApiJob(accepted);
+        setRequests((p) => p.filter((x) => x.id !== id));
+        setAssignedJobs((p) => [job, ...p]);
 
-    const job = {
-      ...req,
-      status: "Assigned",
-      assignedAt: new Date().toISOString(),
-      timeline: [{ status: "Assigned", time: new Date().toISOString() }],
-    };
+        setChats((c) => ({
+          ...c,
+          [job.id]: [
+            {
+              from: "customer",
+              text: "Request accepted. Please reach me as soon as possible.",
+              time: new Date().toISOString(),
+            },
+          ],
+        }));
 
-    setAssignedJobs((p) => [job, ...p]);
-    notify(`Accepted ${req.customer} — ${req.issue}`);
-
-    setChats((c) => ({
-      ...c,
-      [job.id]: [
-        { from: "customer", text: "Please hurry!", time: new Date().toISOString() },
-      ],
-    }));
-
-    playBeep(600, 0.12);
+        notify("Request accepted successfully");
+        playBeep(600, 0.12);
+      } else {
+        await loadRequests();
+      }
+    } catch (error) {
+      notify(
+        error?.response?.data?.message || "Request could not be accepted",
+        "warn"
+      );
+      await loadRequests();
+    }
   }
 
-  function updateJobStatus(jobId, status) {
-    setAssignedJobs((prev) =>
-      prev.map((j) =>
-        j.id === jobId
-          ? {
-              ...j,
-              status,
-              timeline: [...j.timeline, { status, time: new Date().toISOString() }],
-            }
-          : j
-      )
-    );
-    notify(`Job ${jobId} updated: ${status}`);
+  async function updateJobStatus(jobId, status) {
+    const apiStatus =
+      status === "On my way" || status === "enroute"
+        ? "enroute"
+        : null;
+
+    if (!apiStatus) return;
+
+    try {
+      const res = await updateMechanicRequestStatus(jobId, apiStatus);
+      const updated = res?.data?.request;
+
+      if (updated) {
+        setAssignedJobs((prev) =>
+          prev.map((j) =>
+            j.id === jobId
+              ? {
+                  ...j,
+                  ...mapApiJob(updated),
+                  timeline: [
+                    ...(j.timeline || []),
+                    {
+                      status: "On my way",
+                      time: new Date().toISOString(),
+                    },
+                  ],
+                }
+              : j
+          )
+        );
+      } else {
+        await loadRequests();
+      }
+
+      notify("Job status updated: On my way");
+    } catch (error) {
+      notify(
+        error?.response?.data?.message || "Could not update job status",
+        "warn"
+      );
+    }
   }
 
-  function completeJob(jobId) {
+  async function completeJob(jobId) {
     const job = assignedJobs.find((j) => j.id === jobId);
     if (!job) return;
 
-    setEarnings((e) => [
-      { date: new Date().toISOString().slice(0, 10), value: job.estimatedCharge || 1200 },
-      ...e,
-    ]);
+    try {
+      await updateMechanicRequestStatus(jobId, "completed");
 
-    setAssignedJobs((p) => p.filter((j) => j.id !== jobId));
-    notify(`Completed job for ${job.customer}`);
+      setEarnings((e) => [
+        {
+          date: new Date().toISOString().slice(0, 10),
+          value: job.estimatedCharge || 1200,
+        },
+        ...e,
+      ]);
+
+      setAssignedJobs((p) => p.filter((j) => j.id !== jobId));
+      setChats((c) => {
+        const next = { ...c };
+        delete next[jobId];
+        return next;
+      });
+
+      notify(`Completed job for ${job.customer}`);
+    } catch (error) {
+      notify(
+        error?.response?.data?.message || "Could not complete job",
+        "warn"
+      );
+    }
   }
 
   function sendMessage(jobId, text, from = "mechanic") {
@@ -303,7 +394,7 @@ export default function DashboardMechanicFull() {
 
 function PageDashboard({ requests, assignedJobs, mechanicPos }) {
   const stats = [
-    { title: "Today Requests", value: requests.length },
+    { title: "Pending Requests", value: requests.length },
     { title: "Assigned", value: assignedJobs.length },
     { title: "Rating", value: "4.7/5" },
     {
@@ -400,7 +491,7 @@ function PageActiveRequests({ requests, onAccept, onIgnore }) {
             >
               <div>
                 <div className="font-medium">
-                  {r.customer} <span className="text-xs text-gray-500">({r.phone})</span>
+                  {r.customer} {r.phone && <span className="text-xs text-gray-500">({r.phone})</span>}
                 </div>
                 <div className="text-sm text-gray-500">
                   {r.issue} • {r.location} • {r.distance}
@@ -444,8 +535,10 @@ function PageAssignedJobs({
   const [activeJob, setActiveJob] = useState(jobs[0]?.id || null);
 
   useEffect(() => {
-    if (!activeJob && jobs[0]) setActiveJob(jobs[0].id);
-  }, [jobs]);
+    if (!jobs.some((j) => j.id === activeJob)) {
+      setActiveJob(jobs[0]?.id || null);
+    }
+  }, [jobs, activeJob]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -524,29 +617,13 @@ function JobDetail({
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
-        {job.status !== "On my way" && (
+      <div className="mt-3 flex gap-2 flex-wrap">
+        {job.status === "Assigned" && (
           <button
             className="px-3 py-1 rounded-md border dark:border-gray-700"
             onClick={() => updateStatus(job.id, "On my way")}
           >
             On my way
-          </button>
-        )}
-        {job.status !== "Reached" && (
-          <button
-            className="px-3 py-1 rounded-md border dark:border-gray-700"
-            onClick={() => updateStatus(job.id, "Reached")}
-          >
-            Reached
-          </button>
-        )}
-        {job.status !== "Fixing" && (
-          <button
-            className="px-3 py-1 rounded-md border dark:border-gray-700"
-            onClick={() => updateStatus(job.id, "Fixing")}
-          >
-            Fixing
           </button>
         )}
 
@@ -1020,6 +1097,68 @@ function Toasts({ toasts, onClose }) {
   );
 }
 
+// ----------------- API MAPPING -----------------
+
+function mapApiRequest(r) {
+  const coordinates = r?.location?.coordinates || [];
+  const lng = coordinates[0];
+  const lat = coordinates[1];
+
+  return {
+    ...r,
+    id: r._id,
+    customer: r.user?.name || "Roadside User",
+    phone: r.user?.phone || "",
+    issue: r.problem || r.serviceType || "Roadside Assistance",
+    distance: "Nearby",
+    location:
+      r.address ||
+      (Number.isFinite(lat) && Number.isFinite(lng)
+        ? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+        : "Location unavailable"),
+    status: "Open",
+    requestedAt: r.createdAt,
+    sos: false,
+    estimatedCharge: r.fare || 0,
+  };
+}
+
+function mapApiJob(r) {
+  const coordinates = r?.location?.coordinates || [];
+  const lng = coordinates[0];
+  const lat = coordinates[1];
+
+  const uiStatus =
+    r.status === "enroute"
+      ? "On my way"
+      : r.status === "completed"
+        ? "Completed"
+        : "Assigned";
+
+  return {
+    ...r,
+    id: r._id,
+    customer: r.user?.name || "Roadside User",
+    phone: r.user?.phone || "",
+    issue: r.problem || r.serviceType || "Roadside Assistance",
+    distance: "Assigned",
+    location:
+      r.address ||
+      (Number.isFinite(lat) && Number.isFinite(lng)
+        ? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+        : "Location unavailable"),
+    status: uiStatus,
+    assignedAt: r.updatedAt || r.createdAt,
+    timeline: [
+      {
+        status: uiStatus,
+        time: r.updatedAt || r.createdAt || new Date().toISOString(),
+      },
+    ],
+    estimatedCharge: r.fare || 0,
+  };
+}
+
 // ----------------- UTILITIES -----------------
 
 function playBeep(freq = 440, duration = 0.2) {
@@ -1064,7 +1203,7 @@ function nextId(arr) {
 
 function inventoryLowCountFromRequests(reqs) {
   return reqs.filter((r) =>
-    ["battery", "tyre"].some((w) => r.issue.toLowerCase().includes(w))
+    ["battery", "tyre"].some((w) => (r.issue || "").toLowerCase().includes(w))
   ).length;
 }
 
@@ -1117,52 +1256,6 @@ function buildInvoiceHtml(profile, job) {
 
 // ---------------- SAMPLE DATA ----------------
 
-function sampleRequests() {
-  return [
-    {
-      id: 1,
-      customer: "Rahul Sharma",
-      phone: "+91-98765",
-      issue: "Flat tyre",
-      distance: "2.4 km",
-      status: "Open",
-      location: "MG Road, Pune",
-      requestedAt: new Date().toISOString(),
-      sos: false,
-      estimatedCharge: 900,
-    },
-    {
-      id: 2,
-      customer: "Sonal Gupta",
-      phone: "+91-91234",
-      issue: "Battery dead",
-      distance: "4.1 km",
-      status: "Open",
-      location: "Kothrud, Pune",
-      requestedAt: new Date().toISOString(),
-      sos: true,
-      estimatedCharge: 1200,
-    },
-  ];
-}
-
-function sampleAssigned() {
-  return [
-    {
-      id: 201,
-      customer: "Aman Verma",
-      phone: "+91-99887",
-      issue: "Engine overheating",
-      distance: "6.8 km",
-      status: "On my way",
-      location: "Baner, Pune",
-      assignedAt: new Date().toISOString(),
-      timeline: [{ status: "Assigned", time: new Date().toISOString() }],
-      estimatedCharge: 1500,
-    },
-  ];
-}
-
 function sampleInventory() {
   return [
     { id: 1, name: "Tyre (Basic)", sku: "TYR-B", qty: 12, price: 1200 },
@@ -1201,26 +1294,4 @@ function sampleReviews() {
       date: new Date().toISOString(),
     },
   ];
-}
-
-function makeRandomRequest() {
-  const customers = ["Vikas", "Neha", "Karan", "Meena", "Pooja"];
-  const issues = ["Flat tyre", "Battery dead", "Overheating", "Brake issue", "Fuel leak"];
-  const locs = ["Wakad", "Kharadi", "Baner", "Kothrud", "MG Road"];
-
-  const i = Math.floor(Math.random() * customers.length);
-  const sos = Math.random() < 0.15;
-
-  return {
-    id: Date.now(),
-    customer: customers[i],
-    phone: "+91-" + Math.floor(900000000 + Math.random() * 99999999),
-    issue: issues[Math.floor(Math.random() * issues.length)],
-    distance: (Math.random() * 10).toFixed(1) + " km",
-    status: "Open",
-    location: locs[Math.floor(Math.random() * locs.length)] + ", Pune",
-    requestedAt: new Date().toISOString(),
-    sos,
-    estimatedCharge: Math.floor(500 + Math.random() * 2000),
-  };
 }

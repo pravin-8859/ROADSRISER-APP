@@ -1,3 +1,4 @@
+import { createRequestApi } from "../../api/userApi";
 import React, { useState, useRef } from "react";
 import {
   FaMotorcycle, FaCar, FaTruck, FaBus, FaTractor,
@@ -56,14 +57,45 @@ export default function RequestHelp() {
     setImage(preview);
   };
 
-  const handleSubmit = () => {
-    if (!vehicle || !problem || !location) {
-      alert("Please fill required fields.");
+  const handleSubmit = async () => {
+  if (!vehicle || !problem || !location) {
+    alert("Please fill required fields.");
+    return;
+  }
+
+  try {
+    const [lat, lng] = location.split(",").map(Number);
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      alert("Please enter a valid location.");
       return;
     }
 
-    alert("Request Submitted!");
-  };
+    const data = {
+      vehicleType: vehicle,
+      problem,
+      description,
+      serviceType: problem,
+      location: {
+        type: "Point",
+        coordinates: [lng, lat],
+      },
+      address: location,
+    };
+
+    const res = await createRequestApi(data);
+
+    if (res.success) {
+      alert("Request created successfully!");
+    }
+  } catch (error) {
+    console.error(error);
+    alert(
+      error.response?.data?.message ||
+      "Failed to create request."
+    );
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pt-24 px-4 md:px-8">
