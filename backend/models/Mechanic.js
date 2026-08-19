@@ -202,6 +202,12 @@ mechanicSchema.index({
 
 mechanicSchema.index({
   isOnline: 1,
+  activeRequest: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Request",
+  default: null,
+  index: true,
+},
   currentLocation: "2dsphere",
 });
 
