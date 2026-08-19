@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken";
+import Admin from "../models/Admin.js";
 
-export const verifyAdmin = (req, res, next) => {
+export const verifyAdmin = async (req, res, next) => {
   try {
-    const authHeader =
-      req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
     if (
       !authHeader ||
@@ -14,8 +14,7 @@ export const verifyAdmin = (req, res, next) => {
       });
     }
 
-    const token =
-      authHeader.split(" ")[1];
+    const token = authHeader.split(" ")[1];
 
     if (!token) {
       return res.status(401).json({
@@ -37,7 +36,17 @@ export const verifyAdmin = (req, res, next) => {
       });
     }
 
-    req.admin = decoded;
+    const admin = await Admin.findById(
+      decoded.id
+    ).select("-password");
+
+    if (!admin) {
+      return res.status(401).json({
+        message: "Admin account not found",
+      });
+    }
+
+    req.admin = admin;
 
     next();
   } catch (error) {
