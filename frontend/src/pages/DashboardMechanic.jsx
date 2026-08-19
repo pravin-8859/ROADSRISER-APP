@@ -1,6 +1,7 @@
 // src/pages/DashboardMechanic.jsx
 //import GarageLocationPicker from "./GarageLocationPicker";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaHome,
   FaInbox,
@@ -22,6 +23,7 @@ import {
   FaClock,
   FaChevronRight,
   FaSpinner,
+  FaGlobe,
 } from "react-icons/fa";
 
 import {
@@ -46,6 +48,8 @@ const menuItems = [
 ];
 
 export default function DashboardMechanic() {
+  const navigate = useNavigate();
+
   const [activeMenu, setActiveMenu] = useState("Dashboard");
   const [mobileMenu, setMobileMenu] = useState(false);
 
@@ -758,6 +762,13 @@ const setAvailability = async (next) => {
     notify("Part removed.");
   };
 
+  /* ============================= WEBSITE ============================= */
+
+  const handleBackToWebsite = () => {
+    setMobileMenu(false);
+    navigate("/");
+  };
+
   /* ============================= LOGOUT ============================= */
 
   const handleLogout = async () => {
@@ -795,15 +806,114 @@ const setAvailability = async (next) => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
 
-      {/* MOBILE HEADER */}
+      {/* ================= DESKTOP TOP BAR ================= */}
 
-      <div className="md:hidden sticky top-0 z-40 bg-white dark:bg-gray-900 border-b dark:border-gray-800 px-4 py-3 flex items-center justify-between">
+      <header className="hidden md:block sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+
+        <div className="max-w-[1500px] mx-auto px-4 md:px-6 h-[76px] flex items-center justify-between">
+
+          {/* BRAND */}
+
+          <button
+            onClick={handleBackToWebsite}
+            className="flex items-center gap-3 group"
+          >
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-500 flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition">
+              <FaTools />
+            </div>
+
+            <div className="text-left">
+              <div className="font-bold text-base">
+                RoadsRiser
+              </div>
+
+              <div className="text-[10px] text-gray-500 tracking-widest">
+                MECHANIC DASHBOARD
+              </div>
+            </div>
+          </button>
+
+          {/* RIGHT ACTIONS */}
+
+          <div className="flex items-center gap-3">
+
+            <div
+              className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${
+                available
+                  ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  available
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                }`}
+              />
+              {available ? "Online & Accepting Jobs" : "Offline"}
+            </div>
+
+            <button
+              onClick={handleBackToWebsite}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <FaGlobe />
+              <span className="hidden lg:inline">
+                Back to Website
+              </span>
+            </button>
+
+            <div className="hidden lg:flex items-center gap-3 pl-3 border-l border-gray-200 dark:border-gray-700">
+
+              {profile.photo ? (
+                <img
+                  src={profile.photo}
+                  alt="Mechanic"
+                  className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600">
+                  <FaUser />
+                </div>
+              )}
+
+              <div className="max-w-[160px]">
+                <p className="text-sm font-semibold truncate">
+                  {profile.name || "Mechanic"}
+                </p>
+                <p className="text-[10px] text-gray-500 truncate">
+                  {profile.garage || "Your Garage"}
+                </p>
+              </div>
+
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/40 transition"
+              title="Logout"
+              aria-label="Logout"
+            >
+              <FaPowerOff />
+            </button>
+
+          </div>
+
+        </div>
+
+      </header>
+
+      {/* ================= MOBILE HEADER ================= */}
+
+      <div className="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
 
         <div className="flex items-center gap-3">
 
           <button
             onClick={() => setMobileMenu(true)}
-            className="p-2 rounded-lg bg-indigo-600 text-white"
+            className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-lg"
+            aria-label="Open menu"
           >
             <FaBars />
           </button>
@@ -817,13 +927,37 @@ const setAvailability = async (next) => {
 
         </div>
 
-        <div
-          className={`w-3 h-3 rounded-full ${
-            available
-              ? "bg-green-500"
-              : "bg-red-500"
-          }`}
-        />
+        <div className="flex items-center gap-2">
+
+          <button
+            onClick={handleBackToWebsite}
+            className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300"
+            aria-label="Back to website"
+            title="Back to website"
+          >
+            <FaGlobe size={14} />
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 flex items-center justify-center"
+            aria-label="Logout"
+            title="Logout"
+          >
+            <FaPowerOff size={14} />
+          </button>
+
+          <div
+            title={available ? "Online" : "Offline"}
+            className={`w-3 h-3 rounded-full ml-1 ${
+              available
+                ? "bg-green-500"
+                : "bg-red-500"
+            }`}
+          />
+
+        </div>
+
       </div>
 
       <div className="max-w-[1500px] mx-auto p-4 md:p-6 grid grid-cols-12 gap-6">
@@ -833,7 +967,7 @@ const setAvailability = async (next) => {
         <aside
           className={`
             fixed md:sticky
-            top-0 md:top-4
+            top-0 md:top-24
             left-0
             h-screen md:h-fit
             w-[280px] md:w-auto
@@ -1017,11 +1151,21 @@ const setAvailability = async (next) => {
 
           </div>
 
+          {/* WEBSITE */}
+
+          <button
+            onClick={handleBackToWebsite}
+            className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+          >
+            <FaGlobe />
+            Back to Website
+          </button>
+
           {/* LOGOUT */}
 
           <button
             onClick={handleLogout}
-            className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm text-red-600 border border-red-200 hover:bg-red-50 dark:hover:bg-red-950"
+            className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950 transition"
           >
             <FaPowerOff />
             Logout

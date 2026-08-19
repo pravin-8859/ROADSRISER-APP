@@ -17,6 +17,9 @@ import {
   FaBell,
   FaTimes,
   FaRoad,
+  FaSignOutAlt,
+  FaGlobe,
+  FaChevronRight,
 } from "react-icons/fa";
 
 import { getUserProfileApi } from "../../api/userApi";
@@ -61,6 +64,29 @@ export default function DashboardUser() {
     }
   };
 
+  // ================= LOGOUT =================
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+
+    // Remove old user data if present
+    localStorage.removeItem("user_name");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_id");
+
+    navigate("/user/login", {
+      replace: true,
+    });
+  };
+
+  // ================= WEBSITE =================
+
+  const handleBackToWebsite = () => {
+    setMenuOpen(false);
+    navigate("/");
+  };
+
   // ================= TABS =================
 
   const changeTab = (tab) => {
@@ -88,13 +114,12 @@ export default function DashboardUser() {
   // ================= SIDEBAR =================
 
   const Sidebar = (
-    <aside className="w-full bg-[#1d293b] text-white rounded-2xl p-4 shadow-xl">
+    <aside className="w-full bg-[#1d293b] text-white rounded-2xl p-4 shadow-xl border border-white/5">
 
       {/* BRAND */}
 
       <div className="flex items-center gap-3 pb-5 mb-5 border-b border-white/10">
-
-        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg">
           <FaRoad />
         </div>
 
@@ -107,21 +132,18 @@ export default function DashboardUser() {
             User Dashboard
           </p>
         </div>
-
       </div>
 
       {/* USER */}
 
       <div className="flex items-center gap-3 mb-6 px-1">
-
-        <div className="w-10 h-10 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center font-bold">
+        <div className="w-10 h-10 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center font-bold border border-indigo-500/20">
           {(user.name || "U")
             .charAt(0)
             .toUpperCase()}
         </div>
 
         <div className="min-w-0">
-
           <p className="font-semibold text-sm truncate">
             {user.name || "User"}
           </p>
@@ -129,9 +151,7 @@ export default function DashboardUser() {
           <p className="text-[10px] text-gray-400 truncate">
             {user.email || "Customer"}
           </p>
-
         </div>
-
       </div>
 
       {/* MENU */}
@@ -144,7 +164,7 @@ export default function DashboardUser() {
           onClick={() => changeTab("new")}
           className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
             activeTab === "new"
-              ? "bg-indigo-600 text-white shadow-lg"
+              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
               : "text-gray-300 hover:bg-white/5"
           }`}
         >
@@ -158,7 +178,7 @@ export default function DashboardUser() {
           onClick={() => changeTab("active")}
           className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
             activeTab === "active"
-              ? "bg-indigo-600 text-white shadow-lg"
+              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
               : "text-gray-300 hover:bg-white/5"
           }`}
         >
@@ -172,7 +192,7 @@ export default function DashboardUser() {
           onClick={() => changeTab("history")}
           className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
             activeTab === "history"
-              ? "bg-indigo-600 text-white shadow-lg"
+              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
               : "text-gray-300 hover:bg-white/5"
           }`}
         >
@@ -186,7 +206,7 @@ export default function DashboardUser() {
           onClick={() => changeTab("profile")}
           className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
             activeTab === "profile"
-              ? "bg-indigo-600 text-white shadow-lg"
+              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
               : "text-gray-300 hover:bg-white/5"
           }`}
         >
@@ -196,14 +216,35 @@ export default function DashboardUser() {
 
       </nav>
 
+      {/* WEBSITE BUTTON */}
+
+      <div className="mt-6 pt-5 border-t border-white/10 space-y-2">
+
+        <button
+          onClick={handleBackToWebsite}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition"
+        >
+          <FaGlobe />
+          <span>Back to Website</span>
+          <FaChevronRight className="ml-auto text-xs opacity-50" />
+        </button>
+
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition"
+        >
+          <FaSignOutAlt />
+          <span>Logout</span>
+        </button>
+
+      </div>
+
       {/* HELP */}
 
-      <div className="mt-6 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/10">
-
+      <div className="mt-5 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/10">
         <p className="text-[10px] leading-relaxed text-indigo-300">
           Need roadside help? Create a request and get assistance from a nearby mechanic.
         </p>
-
       </div>
 
       {/* KEYBOARD */}
@@ -220,9 +261,87 @@ export default function DashboardUser() {
   return (
     <div className="min-h-screen bg-[#050914] text-white">
 
+      {/* ================= DESKTOP TOP BAR ================= */}
+
+      <header className="hidden md:block sticky top-0 z-40 bg-[#080d18]/95 backdrop-blur-xl border-b border-white/10">
+
+        <div className="max-w-[1450px] mx-auto px-5 lg:px-6 h-[76px] flex items-center justify-between">
+
+          {/* BRAND */}
+
+          <button
+            onClick={handleBackToWebsite}
+            className="flex items-center gap-3 group"
+          >
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition">
+              <FaRoad />
+            </div>
+
+            <div className="text-left">
+              <h1 className="font-bold text-base">
+                RoadsRiser
+              </h1>
+
+              <p className="text-[10px] text-gray-500 tracking-widest">
+                USER DASHBOARD
+              </p>
+            </div>
+          </button>
+
+          {/* RIGHT ACTIONS */}
+
+          <div className="flex items-center gap-3">
+
+            <button
+              onClick={handleBackToWebsite}
+              className="hidden lg:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition"
+            >
+              <FaGlobe />
+              Back to Website
+            </button>
+
+            <button
+              className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:bg-white/10 transition"
+              aria-label="Notifications"
+            >
+              <FaBell size={14} />
+            </button>
+
+            <div className="flex items-center gap-3 pl-3 border-l border-white/10">
+              <div className="w-10 h-10 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center font-bold border border-indigo-500/20">
+                {(user.name || "U")
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
+
+              <div className="hidden sm:block max-w-[150px]">
+                <p className="text-sm font-semibold truncate">
+                  {user.name || "User"}
+                </p>
+
+                <p className="text-[10px] text-gray-500 truncate">
+                  {user.email || "Customer"}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/10 text-red-400 flex items-center justify-center hover:bg-red-500/20 transition"
+              title="Logout"
+            >
+              <FaSignOutAlt size={14} />
+            </button>
+
+          </div>
+
+        </div>
+
+      </header>
+
       {/* ================= MOBILE HEADER ================= */}
 
-      <div className="md:hidden sticky top-0 z-40 bg-[#080d18]/95 backdrop-blur-md border-b border-white/10">
+      <div className="md:hidden sticky top-0 z-40 bg-[#080d18]/95 backdrop-blur-xl border-b border-white/10">
 
         <div className="flex items-center justify-between px-4 py-3">
 
@@ -234,8 +353,10 @@ export default function DashboardUser() {
             <FaBars />
           </button>
 
-          <div className="text-center">
-
+          <button
+            onClick={handleBackToWebsite}
+            className="text-center"
+          >
             <p className="text-[10px] text-indigo-400">
               RoadsRiser
             </p>
@@ -249,14 +370,14 @@ export default function DashboardUser() {
                 ? "Service History"
                 : "My Profile"}
             </h2>
-
-          </div>
+          </button>
 
           <button
-            className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center"
-            aria-label="Notifications"
+            onClick={handleLogout}
+            className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center border border-red-500/10"
+            aria-label="Logout"
           >
-            <FaBell size={15} />
+            <FaSignOutAlt size={14} />
           </button>
 
         </div>
@@ -267,7 +388,6 @@ export default function DashboardUser() {
 
       {menuOpen && (
         <>
-
           {/* BACKDROP */}
 
           <div
@@ -282,20 +402,17 @@ export default function DashboardUser() {
             {/* CLOSE */}
 
             <div className="flex justify-end mb-3">
-
               <button
                 onClick={() => setMenuOpen(false)}
                 className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-gray-300 hover:bg-red-500/20 hover:text-red-400"
               >
                 <FaTimes />
               </button>
-
             </div>
 
             {Sidebar}
 
           </div>
-
         </>
       )}
 
@@ -307,7 +424,7 @@ export default function DashboardUser() {
 
         <div className="hidden md:block w-[220px] lg:w-[240px] shrink-0">
 
-          <div className="sticky top-5">
+          <div className="sticky top-[96px]">
             {Sidebar}
           </div>
 
@@ -393,6 +510,7 @@ export default function DashboardUser() {
       {/* SIDEBAR ANIMATION */}
 
       <style>{`
+
         @keyframes sidebarSlide {
           from {
             transform: translateX(-100%);
@@ -406,6 +524,7 @@ export default function DashboardUser() {
         .animate-sidebar {
           animation: sidebarSlide 0.25s ease-out;
         }
+
       `}</style>
 
     </div>

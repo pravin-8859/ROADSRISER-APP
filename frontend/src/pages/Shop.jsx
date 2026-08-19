@@ -1,5 +1,22 @@
 // src/pages/Shop.jsx
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  FiArrowRight,
+  FiCheck,
+  FiCheckCircle,
+  FiClock,
+  FiPackage,
+  FiPhone,
+  FiSearch,
+  FiShield,
+  FiShoppingBag,
+  FiStar,
+  FiTruck,
+  FiX,
+  FiZap,
+} from "react-icons/fi";
+
 import petrolImg from "../assets/petrol.png";
 import oilImg from "../assets/engine-oil.png";
 import batteryImg from "../assets/battery.png";
@@ -7,83 +24,791 @@ import tireImg from "../assets/tire.png";
 import toolKitImg from "../assets/tool-kit.png";
 
 const products = [
-  { id: 1, name: "Premium Petrol", category: "Fuel", price: "₹120 / L", img: petrolImg },
-  { id: 2, name: "Engine Oil - 4L", category: "Oil", price: "₹850", img: oilImg },
-  { id: 3, name: "Car Battery", category: "Accessory", price: "₹3200", img: batteryImg },
-  { id: 4, name: "Spare Tire", category: "Accessory", price: "₹2000", img: tireImg },
-  { id: 5, name: "Repair Tool Kit", category: "Tools", price: "₹1500", img: toolKitImg },
-  { id: 6, name: "Diesel", category: "Fuel", price: "₹110 / L", img: petrolImg },
+  {
+    id: 1,
+    name: "Premium Petrol",
+    category: "Fuel",
+    price: "₹120 / L",
+    description: "Emergency fuel delivery when you are stranded on the road.",
+    img: petrolImg,
+    tag: "Emergency",
+  },
+  {
+    id: 2,
+    name: "Engine Oil - 4L",
+    category: "Oil",
+    price: "₹850",
+    description: "Quality engine oil for smooth and reliable performance.",
+    img: oilImg,
+    tag: "Popular",
+  },
+  {
+    id: 3,
+    name: "Car Battery",
+    category: "Accessory",
+    price: "₹3,200",
+    description: "Reliable replacement battery for your vehicle.",
+    img: batteryImg,
+    tag: "Essential",
+  },
+  {
+    id: 4,
+    name: "Spare Tire",
+    category: "Accessory",
+    price: "₹2,000",
+    description: "Road-ready spare tire for unexpected punctures.",
+    img: tireImg,
+    tag: "Essential",
+  },
+  {
+    id: 5,
+    name: "Repair Tool Kit",
+    category: "Tools",
+    price: "₹1,500",
+    description: "Compact toolkit for basic roadside vehicle repairs.",
+    img: toolKitImg,
+    tag: "Road Ready",
+  },
+  {
+    id: 6,
+    name: "Diesel",
+    category: "Fuel",
+    price: "₹110 / L",
+    description: "Emergency diesel delivery when you need it most.",
+    img: petrolImg,
+    tag: "Emergency",
+  },
 ];
+
+const categories = ["All", "Fuel", "Oil", "Tools", "Accessory"];
 
 export default function Shop() {
   const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const filteredProducts =
-    filter === "All"
-      ? products
-      : products.filter((product) => product.category === filter);
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const categoryMatch =
+        filter === "All" || product.category === filter;
 
-  const handleQuote = (name) => {
-    alert(`Thank you for your interest in ${name}. We will contact you soon!`);
-  };
+      const searchMatch =
+        product.name.toLowerCase().includes(search.toLowerCase()) ||
+        product.category.toLowerCase().includes(search.toLowerCase());
+
+      return categoryMatch && searchMatch;
+    });
+  }, [filter, search]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24 px-4 md:px-10 transition-colors duration-500">
+    <main className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white">
 
-      {/* PAGE TITLE */}
-      <h1 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-10">
-        Shop at RoadRiser
-      </h1>
+      {/* =====================================================
+          HERO
+      ===================================================== */}
+      <section className="relative overflow-hidden bg-slate-950">
 
-      {/* FILTER BUTTONS */}
-      <div className="flex justify-center mb-10 gap-4 flex-wrap">
-        {["All", "Fuel", "Oil", "Tools", "Accessory"].map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilter(cat)}
-            className={`px-5 py-2 rounded-full font-semibold transition-all shadow 
-              ${
-                filter === cat
-                  ? "bg-indigo-600 text-white dark:bg-indigo-500"
-                  : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 hover:bg-indigo-600 hover:text-white"
-              }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+        {/* Background glow */}
+        <div className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-3xl" />
 
-      {/* PRODUCTS GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-6xl mx-auto pb-20">
-        {filteredProducts.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden"
-          >
-            <img
-              src={product.img}
-              alt={product.name}
-              className="w-full h-48 object-contain bg-gray-100 dark:bg-gray-700 p-4"
-            />
+        <div className="pointer-events-none absolute right-0 top-20 h-[400px] w-[400px] rounded-full bg-indigo-600/10 blur-3xl" />
 
-            <div className="p-5">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {product.name}
-              </h2>
+        <div className="mx-auto max-w-7xl px-6 pb-24 pt-32 lg:px-8 lg:pb-28 lg:pt-40">
 
-              <p className="text-gray-600 dark:text-gray-300 mt-1">
-                {product.price}
+          <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
+
+            {/* Hero content */}
+            <div className="max-w-2xl">
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-blue-300">
+                <FiShoppingBag size={14} />
+                RoadsRiser Shop
+              </div>
+
+              <h1 className="mt-7 text-5xl font-black leading-[1.08] tracking-tight text-white sm:text-6xl">
+                Everything your
+                <span className="block bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                  road may need.
+                </span>
+              </h1>
+
+              <p className="mt-6 max-w-xl text-base leading-8 text-slate-400 sm:text-lg">
+                Explore essential fuel, batteries, tires, engine oils and
+                roadside tools — all designed around your journey.
               </p>
 
-              <button
-                onClick={() => handleQuote(product.name)}
-                className="mt-4 w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 transition"
-              >
-                Get a Quote
-              </button>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+
+                <a
+                  href="#products"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500"
+                >
+                  Explore Products
+                  <FiArrowRight />
+                </a>
+
+                <Link
+                  to="/request-help"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-7 py-3.5 font-bold text-white transition hover:bg-white/10"
+                >
+                  <FiZap />
+                  Request Roadside Help
+                </Link>
+
+              </div>
+
+              {/* Trust items */}
+              <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+
+                <div className="flex items-center gap-3 text-sm text-slate-400">
+                  <FiShield className="shrink-0 text-green-400" />
+                  Trusted Quality
+                </div>
+
+                <div className="flex items-center gap-3 text-sm text-slate-400">
+                  <FiTruck className="shrink-0 text-blue-400" />
+                  Delivery Support
+                </div>
+
+                <div className="flex items-center gap-3 text-sm text-slate-400">
+                  <FiClock className="shrink-0 text-yellow-400" />
+                  Emergency Ready
+                </div>
+
+              </div>
+
             </div>
+
+            {/* Hero visual */}
+            <div className="mx-auto w-full max-w-[520px]">
+
+              <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-2xl backdrop-blur-xl sm:p-7">
+
+                {/* Top */}
+                <div className="flex items-center justify-between">
+
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                      RoadRiser
+                    </p>
+
+                    <h3 className="mt-1 text-xl font-black text-white">
+                      Road Essentials
+                    </h3>
+                  </div>
+
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30">
+                    <FiPackage size={22} />
+                  </div>
+
+                </div>
+
+                {/* Product visual */}
+                <div className="mt-7 grid grid-cols-2 gap-4">
+
+                  <div className="flex min-h-[150px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <img
+                      src={batteryImg}
+                      alt="Battery"
+                      className="h-24 w-24 object-contain"
+                    />
+
+                    <p className="mt-3 text-xs font-semibold text-slate-300">
+                      Battery
+                    </p>
+                  </div>
+
+                  <div className="flex min-h-[150px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <img
+                      src={tireImg}
+                      alt="Tire"
+                      className="h-24 w-24 object-contain"
+                    />
+
+                    <p className="mt-3 text-xs font-semibold text-slate-300">
+                      Tire
+                    </p>
+                  </div>
+
+                  <div className="flex min-h-[150px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <img
+                      src={oilImg}
+                      alt="Engine Oil"
+                      className="h-24 w-24 object-contain"
+                    />
+
+                    <p className="mt-3 text-xs font-semibold text-slate-300">
+                      Engine Oil
+                    </p>
+                  </div>
+
+                  <div className="flex min-h-[150px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <img
+                      src={toolKitImg}
+                      alt="Tool Kit"
+                      className="h-24 w-24 object-contain"
+                    />
+
+                    <p className="mt-3 text-xs font-semibold text-slate-300">
+                      Tool Kit
+                    </p>
+                  </div>
+
+                </div>
+
+                {/* Bottom status */}
+                <div className="mt-5 flex items-center gap-3 rounded-2xl border border-green-400/10 bg-green-500/5 p-4">
+
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-400">
+                    <FiCheckCircle />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-bold text-white">
+                      Road Ready
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Essential roadside supplies
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
-        ))}
+
+        </div>
+      </section>
+
+      {/* =====================================================
+          BENEFITS
+      ===================================================== */}
+      <section className="mx-auto max-w-7xl px-6 lg:px-8">
+
+        <div className="-mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+          <Benefit
+            icon={<FiShield />}
+            title="Reliable Quality"
+            text="Products selected for your vehicle"
+          />
+
+          <Benefit
+            icon={<FiTruck />}
+            title="Delivery Support"
+            text="Help wherever you need it"
+          />
+
+          <Benefit
+            icon={<FiZap />}
+            title="Emergency Ready"
+            text="Designed for roadside situations"
+          />
+
+          <Benefit
+            icon={<FiPhone />}
+            title="Need Assistance?"
+            text="RoadRiser support is nearby"
+          />
+
+        </div>
+
+      </section>
+
+      {/* =====================================================
+          PRODUCTS
+      ===================================================== */}
+      <section
+        id="products"
+        className="mx-auto max-w-7xl px-6 py-24 lg:px-8"
+      >
+
+        {/* Heading */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+
+          <div className="max-w-2xl">
+
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+              Our Collection
+            </p>
+
+            <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
+              Road essentials.
+            </h2>
+
+            <p className="mt-4 text-slate-500 dark:text-slate-400">
+              Choose a category or search for exactly what you need.
+            </p>
+
+          </div>
+
+          {/* Search */}
+          <div className="relative w-full lg:w-[320px]">
+
+            <FiSearch
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-white/10 dark:bg-slate-900"
+            />
+
+          </div>
+
+        </div>
+
+        {/* Category buttons */}
+        <div className="mt-8 flex flex-wrap gap-3">
+
+          {categories.map((category) => (
+
+            <button
+              key={category}
+              onClick={() => setFilter(category)}
+              className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
+                filter === category
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                  : "border border-slate-200 bg-white text-slate-600 hover:border-blue-400 hover:text-blue-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-300"
+              }`}
+            >
+              {category}
+            </button>
+
+          ))}
+
+        </div>
+
+        {/* Product grid */}
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+
+          {filteredProducts.map((product) => (
+
+            <ProductCard
+              key={product.id}
+              product={product}
+              onQuote={() => setSelectedProduct(product)}
+            />
+
+          ))}
+
+        </div>
+
+        {/* Empty state */}
+        {filteredProducts.length === 0 && (
+          <div className="rounded-3xl border border-dashed border-slate-300 py-20 text-center dark:border-white/10">
+
+            <FiSearch
+              size={38}
+              className="mx-auto text-slate-400"
+            />
+
+            <h3 className="mt-5 text-xl font-bold">
+              No products found
+            </h3>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Try another product or category.
+            </p>
+
+          </div>
+        )}
+
+      </section>
+
+      {/* =====================================================
+          WHY ROADRISER SHOP
+      ===================================================== */}
+      <section className="bg-white py-24 dark:bg-slate-900/50">
+
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+
+            <div>
+
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+                Why RoadsRiser
+              </p>
+
+              <h2 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">
+                More than a shop.
+                <span className="block text-blue-600 dark:text-blue-400">
+                  It's roadside support.
+                </span>
+              </h2>
+
+              <p className="mt-5 max-w-xl leading-7 text-slate-500 dark:text-slate-400">
+                RoadsRiser combines essential products with roadside
+                assistance, so you don't have to figure everything out alone
+                when something goes wrong.
+              </p>
+
+              <div className="mt-8 space-y-5">
+
+                <FeatureRow text="Get essential vehicle products" />
+                <FeatureRow text="Request roadside assistance directly" />
+                <FeatureRow text="Connect with verified mechanics" />
+                <FeatureRow text="Track your assistance request" />
+
+              </div>
+
+            </div>
+
+            {/* Stats / visual */}
+            <div className="grid grid-cols-2 gap-4">
+
+              <StatBox
+                number="24/7"
+                label="Roadside Support"
+              />
+
+              <StatBox
+                number="100%"
+                label="Customer Focus"
+              />
+
+              <StatBox
+                number="Fast"
+                label="Assistance"
+              />
+
+              <StatBox
+                number="Secure"
+                label="Experience"
+              />
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* =====================================================
+          FINAL CTA
+      ===================================================== */}
+      <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
+
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 via-indigo-700 to-slate-950 px-7 py-16 text-center text-white sm:px-12">
+
+          <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 rounded-full bg-cyan-400/20 blur-3xl" />
+
+          <div className="relative mx-auto max-w-3xl">
+
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-200">
+              Need More Than A Product?
+            </p>
+
+            <h2 className="mt-4 text-4xl font-black sm:text-5xl">
+              Stranded on the road?
+            </h2>
+
+            <p className="mx-auto mt-5 max-w-xl leading-7 text-blue-100">
+              Skip the hassle. Request roadside assistance and let RoadsRiser
+              connect you with the right help.
+            </p>
+
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+
+              <Link
+                to="/request-help"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 font-bold text-blue-700 shadow-xl transition hover:-translate-y-1"
+              >
+                Request Assistance
+                <FiArrowRight />
+              </Link>
+
+              <a
+                href="tel:+919389867581"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-7 py-3.5 font-bold text-white transition hover:bg-white/20"
+              >
+                <FiPhone />
+                Call Us
+              </a>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* =====================================================
+          QUOTE MODAL
+      ===================================================== */}
+      {selectedProduct && (
+        <QuoteModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
+
+    </main>
+  );
+}
+
+/* =============================================================
+   BENEFIT
+============================================================= */
+
+function Benefit({ icon, title, text }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/30 dark:border-white/10 dark:bg-slate-900 dark:shadow-black/20">
+
+      <div className="flex items-center gap-4">
+
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+          {icon}
+        </div>
+
+        <div className="min-w-0">
+
+          <h3 className="truncate font-bold">
+            {title}
+          </h3>
+
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {text}
+          </p>
+
+        </div>
+
+      </div>
+
+    </div>
+  );
+}
+
+/* =============================================================
+   PRODUCT CARD
+============================================================= */
+
+function ProductCard({ product, onQuote }) {
+  return (
+    <article className="group overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-slate-900">
+
+      {/* Image area */}
+      <div className="relative flex h-60 items-center justify-center overflow-hidden bg-slate-100 dark:bg-slate-800">
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.08),transparent_65%)]" />
+
+        <span className="absolute left-5 top-5 z-10 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+          {product.tag}
+        </span>
+
+        <img
+          src={product.img}
+          alt={product.name}
+          className="relative h-44 w-44 object-contain drop-shadow-xl transition duration-500 group-hover:scale-105"
+        />
+
+      </div>
+
+      {/* Details */}
+      <div className="p-6">
+
+        <div className="flex items-start justify-between gap-3">
+
+          <div className="min-w-0">
+
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+              {product.category}
+            </p>
+
+            <h3 className="mt-1 truncate text-xl font-black">
+              {product.name}
+            </h3>
+
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1 text-xs text-yellow-500">
+            <FiStar className="fill-current" />
+            <span className="font-semibold text-slate-400">
+              4.8
+            </span>
+          </div>
+
+        </div>
+
+        <p className="mt-3 min-h-[48px] text-sm leading-6 text-slate-500 dark:text-slate-400">
+          {product.description}
+        </p>
+
+        <div className="mt-6 flex items-end justify-between gap-4">
+
+          <div className="min-w-0">
+
+            <p className="text-xs text-slate-400">
+              Starting from
+            </p>
+
+            <p className="mt-1 truncate text-2xl font-black">
+              {product.price}
+            </p>
+
+          </div>
+
+          <button
+            onClick={onQuote}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+          >
+            Quote
+            <FiArrowRight size={15} />
+          </button>
+
+        </div>
+
+      </div>
+
+    </article>
+  );
+}
+
+/* =============================================================
+   FEATURE ROW
+============================================================= */
+
+function FeatureRow({ text }) {
+  return (
+    <div className="flex items-center gap-3">
+
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-green-500">
+        <FiCheck size={16} />
+      </div>
+
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        {text}
+      </span>
+
+    </div>
+  );
+}
+
+/* =============================================================
+   STAT BOX
+============================================================= */
+
+function StatBox({ number, label }) {
+  return (
+    <div className="flex min-h-[170px] flex-col items-center justify-center rounded-3xl border border-slate-200 bg-slate-50 p-6 text-center dark:border-white/10 dark:bg-slate-950">
+
+      <p className="text-4xl font-black text-blue-600 dark:text-blue-400">
+        {number}
+      </p>
+
+      <p className="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
+        {label}
+      </p>
+
+    </div>
+  );
+}
+
+/* =============================================================
+   QUOTE MODAL
+============================================================= */
+
+function QuoteModal({ product, onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+
+      <div
+        className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+
+        {/* Header image */}
+        <div className="relative flex h-48 items-center justify-center bg-slate-100 dark:bg-slate-800">
+
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-slate-700 transition hover:bg-black/20 dark:bg-white/10 dark:text-white"
+          >
+            <FiX />
+          </button>
+
+          <img
+            src={product.img}
+            alt={product.name}
+            className="h-36 w-36 object-contain"
+          />
+
+        </div>
+
+        {/* Content */}
+        <div className="p-7">
+
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+            {product.category}
+          </p>
+
+          <h2 className="mt-2 text-2xl font-black">
+            {product.name}
+          </h2>
+
+          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            {product.description}
+          </p>
+
+          <div className="mt-5 rounded-2xl bg-slate-100 p-4 dark:bg-slate-800">
+
+            <div className="flex items-center justify-between">
+
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                Estimated price
+              </span>
+
+              <span className="text-xl font-black">
+                {product.price}
+              </span>
+
+            </div>
+
+          </div>
+
+          <div className="mt-5 space-y-3">
+
+            <FeatureRow text="Availability confirmation" />
+            <FeatureRow text="Personalized quote" />
+            <FeatureRow text="Delivery/support options" />
+
+          </div>
+
+          <div className="mt-7 grid grid-cols-2 gap-3">
+
+            <button
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 py-3 font-bold text-slate-600 transition hover:bg-slate-100 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              Close
+            </button>
+
+            <a
+              href="tel:+919389867581"
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-bold text-white transition hover:bg-blue-500"
+            >
+              <FiPhone />
+              Contact
+            </a>
+
+          </div>
+
+        </div>
+
       </div>
 
     </div>
