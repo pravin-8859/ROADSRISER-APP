@@ -1,25 +1,80 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-const AdminSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true },
-  role: { type: String, default: "admin" },
-  createdAt: { type: Date, default: Date.now }
+const adminSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+      required: true,
+      minlength: 6,
+    },
+
+    role: {
+      type: String,
+      enum: ["admin"],
+      default: "admin",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// =====================================================
+// PASSWORD HASH
+// =====================================================
+
+adminSchema.pre("save", async function (next) {
+  try {
+    if (!this.isModified("password")) {
+      return next();
+    }
+
+    const salt = await bcrypt.genSalt(10);
+
+    this.password = await bcrypt.hash(
+      this.password,
+      salt
+    );
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
-// hash before save
-AdminSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
+// =====================================================
+// PASSWORD CHECK
+// =====================================================
 
-// method to compare password
-AdminSchema.methods.matchPassword = async function (entered) {
-  return await bcrypt.compare(entered, this.password);
+adminSchema.methods.matchPassword = async function (
+  enteredPassword
+) {
+  if (!enteredPassword || !this.password) {
+    return false;
+  }
+
+  return bcrypt.compare(
+    enteredPassword,
+    this.password
+  );
 };
 
-export default mongoose.model("Admin", AdminSchema);
+export default mongoose.model(
+  "Admin",
+  adminSchema
+);

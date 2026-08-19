@@ -1,13 +1,18 @@
-import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 
-export default function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("adminToken");
-  const role = localStorage.getItem("role");
+export default function ProtectedRoute() {
+  const token = localStorage.getItem(
+    "adminAccessToken"
+  );
 
-  if (!token || role !== "admin") {
-    return <Navigate to="/admin/login" replace />;
+  if (!token) {
+    return (
+      <Navigate
+        to="/admin/login"
+        replace
+      />
+    );
   }
 
-  return children ? children : <Outlet />;
+  return <Outlet />;
 }

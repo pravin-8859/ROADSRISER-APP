@@ -1,6 +1,10 @@
-// src/pages/AdminAnalytics.jsx
-import React, { useMemo, useState, useEffect } from "react";
-import { Line, Bar, Pie } from "react-chartjs-2";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Line,
+  Bar,
+  Doughnut,
+} from "react-chartjs-2";
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,10 +13,12 @@ import {
   LineElement,
   BarElement,
   ArcElement,
-  Title,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js";
+
+import { getDashboardStats } from "../services/api";
 
 ChartJS.register(
   CategoryScale,
@@ -21,278 +27,854 @@ ChartJS.register(
   LineElement,
   BarElement,
   ArcElement,
-  Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
-/*
- AdminAnalytics.jsx
- - self-contained admin analytics UI
- - Replace dummy fetch functions with real API calls when ready
-*/
-
-function formatNumber(n) {
-  return n?.toLocaleString?.() ?? n;
-}
-
-// Dummy data generator (replace with API calls)
-function generateDummySeries(days = 14) {
-  const series = [];
-  const types = ["Towing", "Flat Tyre", "Battery", "Key Unlock", "Fuel Delivery"];
-  const mechanics = ["Rakesh", "FastFix", "Sharma", "Arjun", "Nitin"];
-
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    const label = date.toLocaleDateString();
-    const count = Math.floor(20 + Math.random() * 80);
-    const avgResponse = +(5 + Math.random() * 20).toFixed(1); // minutes
-    const breakdown = types.reduce((acc, t) => {
-      acc[t] = Math.floor(Math.random() * 10);
-      return acc;
-    }, {});
-    series.push({
-      date: label,
-      count,
-      avgResponse,
-      breakdown,
-      mechanics: mechanics.map((m) => ({ name: m, jobs: Math.floor(Math.random() * 10) })),
-    });
-  }
-  return series;
-}
-
 export default function AdminAnalytics() {
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [series, setSeries] = useState([]);
-  const [rangeDays, setRangeDays] = useState(14);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
 
-  // Simulate fetch
-  useEffect(() => {
-    setLoading(true);
-    const t = setTimeout(() => {
-      setSeries(generateDummySeries(rangeDays));
+  const loadAnalytics = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError("");
+
+      const data = await getDashboardStats();
+
+      setStats(data?.stats || {});
+    } catch (err) {
+      console.error(
+        "Analytics loading error:",
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to load analytics."
+      );
+    } finally {
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [rangeDays]);
+      setRefreshing(false);
+    }
+  };
 
-  // COMPUTED METRICS
-  const totals = useMemo(() => {
-    const totalRequests = series.reduce((s, d) => s + (d.count || 0), 0);
-    const avgResponse =
-      series.length > 0
-        ? (series.reduce((s, d) => s + (d.avgResponse || 0), 0) / series.length).toFixed(1)
-        : 0;
-    const completed = Math.floor(totalRequests * (0.65 + Math.random() * 0.25));
-    const active = Math.max(0, totalRequests - completed);
-    return { totalRequests, completed, active, avgResponse };
-  }, [series]);
+  useEffect(() => {
+    loadAnalytics();
+  }, []);
 
-  // Requests over time (line)
-  const lineData = useMemo(() => {
-    return {
-      labels: series.map((s) => s.date),
+  // =====================================================
+  // REAL DATA
+  // =====================================================
+
+  const totalRequests =
+    stats?.totalRequests || 0;
+
+  const pending =
+    stats?.pendingRequests || 0;
+
+  const accepted =
+    stats?.acceptedRequests || 0;
+
+  const enroute =
+    stats?.enrouteRequests || 0;
+
+  const completed =
+    stats?.completedRequests || 0;
+
+  const cancelled =
+    stats?.cancelledRequests || 0;
+
+  const totalMechanics =
+    stats?.totalMechanics || 0;
+
+  const onlineMechanics =
+    stats?.onlineMechanics || 0;
+
+  const offlineMechanics =
+    Math.max(
+      totalMechanics - onlineMechanics,
+      0
+    );
+
+  const totalUsers =
+    stats?.totalUsers || 0;
+
+  // =====================================================
+  // RATES
+  // =====================================================
+
+  const completionRate =
+    totalRequests > 0
+      ? (
+          (completed / totalRequests) *
+          100
+        ).toFixed(1)
+      : "0.0";
+
+  const cancellationRate =
+    totalRequests > 0
+      ? (
+          (cancelled / totalRequests) *
+          100
+        ).toFixed(1)
+      : "0.0";
+
+  const activeRequests =
+    pending + accepted + enroute;
+
+  const mechanicAvailability =
+    totalMechanics > 0
+      ? (
+          (onlineMechanics /
+            totalMechanics) *
+          100
+        ).toFixed(1)
+      : "0.0";
+
+  // =====================================================
+  // REQUEST STATUS CHART
+  // =====================================================
+
+  const requestStatusData = useMemo(
+    () => ({
+      labels: [
+        "Pending",
+        "Accepted",
+        "Enroute",
+        "Completed",
+        "Cancelled",
+      ],
+
+      datasets: [
+        {
+          data: [
+            pending,
+            accepted,
+            enroute,
+            completed,
+            cancelled,
+          ],
+
+          backgroundColor: [
+            "#f59e0b",
+            "#6366f1",
+            "#3b82f6",
+            "#22c55e",
+            "#ef4444",
+          ],
+
+          borderWidth: 0,
+          hoverOffset: 8,
+        },
+      ],
+    }),
+    [
+      pending,
+      accepted,
+      enroute,
+      completed,
+      cancelled,
+    ]
+  );
+
+  // =====================================================
+  // MECHANIC STATUS CHART
+  // =====================================================
+
+  const mechanicStatusData = useMemo(
+    () => ({
+      labels: [
+        "Online",
+        "Offline",
+      ],
+
+      datasets: [
+        {
+          data: [
+            onlineMechanics,
+            offlineMechanics,
+          ],
+
+          backgroundColor: [
+            "#22c55e",
+            "#6b7280",
+          ],
+
+          borderWidth: 0,
+          hoverOffset: 8,
+        },
+      ],
+    }),
+    [
+      onlineMechanics,
+      offlineMechanics,
+    ]
+  );
+
+  // =====================================================
+  // REQUEST STATUS BAR
+  // =====================================================
+
+  const requestBarData = useMemo(
+    () => ({
+      labels: [
+        "Pending",
+        "Accepted",
+        "Enroute",
+        "Completed",
+        "Cancelled",
+      ],
+
       datasets: [
         {
           label: "Requests",
-          data: series.map((s) => s.count),
-          tension: 0.25,
-          borderWidth: 2,
-          fill: true,
-          backgroundColor: "rgba(99,102,241,0.08)",
-          borderColor: "rgba(99,102,241,1)",
-          pointRadius: 3,
+
+          data: [
+            pending,
+            accepted,
+            enroute,
+            completed,
+            cancelled,
+          ],
+
+          backgroundColor: [
+            "#f59e0b",
+            "#6366f1",
+            "#3b82f6",
+            "#22c55e",
+            "#ef4444",
+          ],
+
+          borderRadius: 8,
+          maxBarThickness: 55,
         },
       ],
-    };
-  }, [series]);
+    }),
+    [
+      pending,
+      accepted,
+      enroute,
+      completed,
+      cancelled,
+    ]
+  );
 
-  // Mechanics performance (aggregate)
-  const mechanicsPerformance = useMemo(() => {
-    const map = {};
-    series.forEach((d) => {
-      (d.mechanics || []).forEach((m) => {
-        map[m.name] = (map[m.name] || 0) + m.jobs;
-      });
-    });
-    const names = Object.keys(map);
-    return { labels: names, data: names.map((n) => map[n]) };
-  }, [series]);
+  // =====================================================
+  // CHART OPTIONS
+  // =====================================================
 
-  const barData = {
-    labels: mechanicsPerformance.labels,
-    datasets: [
-      {
-        label: "Jobs completed",
-        data: mechanicsPerformance.data,
-        backgroundColor: mechanicsPerformance.labels.map((_, i) => `rgba(${50 + i * 30},120,200,0.85)`),
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+
+    cutout: "70%",
+
+    plugins: {
+      legend: {
+        position: "bottom",
+
+        labels: {
+          color: "#9ca3af",
+          padding: 18,
+          usePointStyle: true,
+        },
       },
-    ],
+    },
   };
 
-  // Request type distribution (pie)
-  const pieData = useMemo(() => {
-    const agg = {};
-    series.forEach((d) => {
-      Object.entries(d.breakdown || {}).forEach(([k, v]) => {
-        agg[k] = (agg[k] || 0) + v;
-      });
-    });
-    const labels = Object.keys(agg);
-    return {
-      labels,
-      datasets: [
-        {
-          data: labels.map((l) => agg[l]),
-          backgroundColor: labels.map((_, i) => `hsl(${(i * 70) % 360} 70% 55% / 0.9)`),
-        },
-      ],
-    };
-  }, [series]);
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
 
-  // CSV export for time-series
-  function downloadCSV() {
-    const rows = [["date", "requests", "avg_response_minutes"]];
-    series.forEach((d) => rows.push([d.date, d.count, d.avgResponse]));
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `requests_series_${rangeDays}d.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    plugins: {
+      legend: {
+        display: false,
+      },
+    },
+
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+
+        ticks: {
+          color: "#9ca3af",
+        },
+      },
+
+      y: {
+        beginAtZero: true,
+
+        grid: {
+          color:
+            "rgba(255,255,255,0.05)",
+        },
+
+        ticks: {
+          color: "#9ca3af",
+          precision: 0,
+        },
+      },
+    },
+  };
+
+  // =====================================================
+  // CSV EXPORT
+  // =====================================================
+
+  const exportCSV = () => {
+    const rows = [
+      ["Metric", "Value"],
+
+      ["Total Users", totalUsers],
+
+      [
+        "Total Mechanics",
+        totalMechanics,
+      ],
+
+      [
+        "Online Mechanics",
+        onlineMechanics,
+      ],
+
+      [
+        "Total Requests",
+        totalRequests,
+      ],
+
+      ["Pending", pending],
+
+      ["Accepted", accepted],
+
+      ["Enroute", enroute],
+
+      ["Completed", completed],
+
+      ["Cancelled", cancelled],
+
+      [
+        "Completion Rate",
+        `${completionRate}%`,
+      ],
+
+      [
+        "Cancellation Rate",
+        `${cancellationRate}%`,
+      ],
+    ];
+
+    const csv = rows
+      .map((row) =>
+        row
+          .map((value) =>
+            `"${String(value).replace(
+              /"/g,
+              '""'
+            )}"`
+          )
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob(
+      [csv],
+      {
+        type: "text/csv;charset=utf-8;",
+      }
+    );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+
+    link.download =
+      "roadsriser-analytics.csv";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
     URL.revokeObjectURL(url);
-  }
+  };
+
+  // =====================================================
+  // LOADING
+  // =====================================================
 
   if (loading) {
-    return <div className="p-6 text-gray-300">Loading analytics...</div>;
+    return (
+      <div className="min-h-[500px] flex items-center justify-center">
+        <div className="text-center">
+
+          <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto" />
+
+          <p className="text-gray-400 mt-4 text-sm">
+            Loading analytics...
+          </p>
+
+        </div>
+      </div>
+    );
+  }
+
+  // =====================================================
+  // ERROR
+  // =====================================================
+
+  if (error) {
+    return (
+      <div className="bg-[#111827] border border-red-500/20 rounded-2xl p-8 text-center">
+
+        <div className="text-red-400 text-3xl mb-3">
+          !
+        </div>
+
+        <h2 className="text-white font-semibold">
+          Unable to load analytics
+        </h2>
+
+        <p className="text-gray-500 text-sm mt-2">
+          {error}
+        </p>
+
+        <button
+          onClick={() => loadAnalytics()}
+          className="mt-5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium"
+        >
+          Try Again
+        </button>
+
+      </div>
+    );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <header className="flex items-start justify-between gap-4">
+    <div className="space-y-6">
+
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
+      <section className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
         <div>
-          <h1 className="text-2xl font-semibold">Analytics</h1>
-          <p className="text-sm text-gray-400">Overview of requests, mechanics & trends</p>
+          <p className="text-sm text-indigo-400 font-medium">
+            Platform Insights
+          </p>
+
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mt-1">
+            Analytics
+          </h1>
+
+          <p className="text-sm text-gray-400 mt-1">
+            Real-time overview based on your RoadsRiser data.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <select
-            value={rangeDays}
-            onChange={(e) => setRangeDays(Number(e.target.value))}
-            className="bg-gray-800 border border-gray-700 px-3 py-2 rounded"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={14}>Last 14 days</option>
-            <option value={30}>Last 30 days</option>
-          </select>
 
           <button
-            onClick={downloadCSV}
-            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded"
+            onClick={exportCSV}
+            className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 text-sm font-medium transition"
           >
             Export CSV
           </button>
-        </div>
-      </header>
 
-      {/* KPI Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-          <div className="text-xs text-gray-400">Total Requests</div>
-          <div className="text-2xl font-semibold mt-1">{formatNumber(totals.totalRequests)}</div>
+          <button
+            onClick={() =>
+              loadAnalytics(true)
+            }
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-sm font-medium transition"
+          >
+            <span
+              className={
+                refreshing
+                  ? "animate-spin"
+                  : ""
+              }
+            >
+              ↻
+            </span>
+
+            {refreshing
+              ? "Refreshing..."
+              : "Refresh"}
+          </button>
+
         </div>
 
-        <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-          <div className="text-xs text-gray-400">Active</div>
-          <div className="text-2xl font-semibold mt-1">{formatNumber(totals.active)}</div>
-        </div>
-
-        <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-          <div className="text-xs text-gray-400">Completed</div>
-          <div className="text-2xl font-semibold mt-1">{formatNumber(totals.completed)}</div>
-        </div>
-
-        <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-          <div className="text-xs text-gray-400">Avg Response (min)</div>
-          <div className="text-2xl font-semibold mt-1">{totals.avgResponse}</div>
-        </div>
       </section>
 
-      {/* Charts row */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="col-span-1 lg:col-span-2 bg-gray-900 p-4 rounded-lg border border-gray-800">
-          <h3 className="text-sm text-gray-300 mb-2">Requests — last {rangeDays} days</h3>
-          <Line data={lineData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
-        </div>
+      {/* =================================================
+          KPI CARDS
+      ================================================= */}
 
-        <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-          <h3 className="text-sm text-gray-300 mb-2">Request Types</h3>
-          <div className="h-52">
-            <Pie data={pieData} options={{ plugins: { legend: { position: "bottom" } } }} />
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+        <MetricCard
+          title="Total Requests"
+          value={totalRequests}
+          icon="🚗"
+        />
+
+        <MetricCard
+          title="Completion Rate"
+          value={`${completionRate}%`}
+          icon="✅"
+        />
+
+        <MetricCard
+          title="Active Requests"
+          value={activeRequests}
+          icon="⚡"
+        />
+
+        <MetricCard
+          title="Cancellation Rate"
+          value={`${cancellationRate}%`}
+          icon="✕"
+        />
+
+      </section>
+
+      {/* =================================================
+          PLATFORM HEALTH
+      ================================================= */}
+
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        <HealthCard
+          title="Users"
+          value={totalUsers}
+          description="Registered users"
+          icon="👥"
+        />
+
+        <HealthCard
+          title="Mechanics"
+          value={totalMechanics}
+          description={`${onlineMechanics} currently online`}
+          icon="🔧"
+        />
+
+        <HealthCard
+          title="Availability"
+          value={`${mechanicAvailability}%`}
+          description="Mechanics online"
+          icon="🟢"
+        />
+
+      </section>
+
+      {/* =================================================
+          REQUEST STATUS
+      ================================================= */}
+
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+        <div className="xl:col-span-2 bg-[#111827] border border-white/10 rounded-2xl p-5 shadow-xl">
+
+          <div className="mb-5">
+
+            <h2 className="text-lg font-semibold text-white">
+              Request Distribution
+            </h2>
+
+            <p className="text-xs text-gray-500 mt-1">
+              Current requests grouped by status.
+            </p>
+
           </div>
+
+          <div className="h-[330px]">
+
+            <Bar
+              data={requestBarData}
+              options={barOptions}
+            />
+
+          </div>
+
         </div>
+
+        <div className="bg-[#111827] border border-white/10 rounded-2xl p-5 shadow-xl">
+
+          <div className="mb-5">
+
+            <h2 className="text-lg font-semibold text-white">
+              Request Status
+            </h2>
+
+            <p className="text-xs text-gray-500 mt-1">
+              Overall request breakdown.
+            </p>
+
+          </div>
+
+          <div className="h-[300px]">
+
+            <Doughnut
+              data={requestStatusData}
+              options={doughnutOptions}
+            />
+
+          </div>
+
+        </div>
+
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-gray-900 p-4 rounded-lg border border-gray-800 lg:col-span-2">
-          <h3 className="text-sm text-gray-300 mb-2">Mechanics Performance</h3>
-          <Bar data={barData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+      {/* =================================================
+          MECHANIC ANALYTICS
+      ================================================= */}
+
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <div className="bg-[#111827] border border-white/10 rounded-2xl p-5 shadow-xl">
+
+          <div className="mb-5">
+
+            <h2 className="text-lg font-semibold text-white">
+              Mechanic Availability
+            </h2>
+
+            <p className="text-xs text-gray-500 mt-1">
+              Current online and offline mechanics.
+            </p>
+
+          </div>
+
+          <div className="h-[300px]">
+
+            <Doughnut
+              data={mechanicStatusData}
+              options={doughnutOptions}
+            />
+
+          </div>
+
         </div>
 
-        <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-          <h3 className="text-sm text-gray-300 mb-2">Top Mechanics</h3>
-          <ul className="space-y-2">
-            {mechanicsPerformance.labels.length === 0 ? (
-              <li className="text-gray-400">No data</li>
-            ) : (
-              mechanicsPerformance.labels.map((name, i) => (
-                <li key={name} className="flex justify-between text-sm">
-                  <span>{name}</span>
-                  <span className="font-medium">{mechanicsPerformance.data[i]}</span>
-                </li>
-              ))
-            )}
-          </ul>
+        <div className="bg-[#111827] border border-white/10 rounded-2xl p-5 shadow-xl">
+
+          <div className="mb-5">
+
+            <h2 className="text-lg font-semibold text-white">
+              Request Health
+            </h2>
+
+            <p className="text-xs text-gray-500 mt-1">
+              Important operational metrics.
+            </p>
+
+          </div>
+
+          <div className="space-y-4">
+
+            <ProgressRow
+              label="Completed"
+              value={completed}
+              total={totalRequests}
+              color="bg-green-500"
+            />
+
+            <ProgressRow
+              label="Pending"
+              value={pending}
+              total={totalRequests}
+              color="bg-yellow-500"
+            />
+
+            <ProgressRow
+              label="Accepted"
+              value={accepted}
+              total={totalRequests}
+              color="bg-indigo-500"
+            />
+
+            <ProgressRow
+              label="Enroute"
+              value={enroute}
+              total={totalRequests}
+              color="bg-blue-500"
+            />
+
+            <ProgressRow
+              label="Cancelled"
+              value={cancelled}
+              total={totalRequests}
+              color="bg-red-500"
+            />
+
+          </div>
+
         </div>
+
       </section>
 
-      <footer className="text-xs text-gray-500">Tip: Replace dummy generator with your analytics endpoints for real insights.</footer>
+      {/* =================================================
+          NOTE
+      ================================================= */}
+
+      <div className="rounded-xl bg-indigo-500/5 border border-indigo-500/10 p-4">
+
+        <p className="text-xs text-gray-400">
+          <span className="text-indigo-400 font-medium">
+            Analytics note:
+          </span>{" "}
+          Current charts are based on the real aggregate
+          statistics available from the admin dashboard API.
+          Historical daily trends, average response time and
+          per-mechanic performance will require dedicated
+          analytics endpoints.
+        </p>
+
+      </div>
+
     </div>
   );
 }
-<div className="flex gap-2 mt-3">
-  <button
-    onClick={() =>
-      exportCSV("requests_report", [
-        ["Date", "Requests", "Avg Response"],
-        ...series.map((s) => [s.date, s.count, s.avgResponse]),
-      ])
-    }
-    className="px-3 py-2 bg-gray-700 text-white rounded"
-  >
-    Export CSV
-  </button>
 
-  <button
-    onClick={() =>
-      exportRequestsPDF({
-        title: "RoadsRiser Requests Report",
-        requests: series.map((s) => ({
-          date: s.date,
-          customer: "N/A",
-          issue: "Aggregated",
-          status: "Completed",
-          location: "Multiple",
-        })),
-      })
-    }
-    className="px-3 py-2 bg-indigo-600 text-white rounded"
-  >
-    Export PDF
-  </button>
-</div>
+// =====================================================
+// METRIC CARD
+// =====================================================
+
+function MetricCard({
+  title,
+  value,
+  icon,
+}) {
+  return (
+    <div className="bg-[#111827] border border-white/10 rounded-2xl p-5 shadow-xl">
+
+      <div className="flex items-center justify-between">
+
+        <div>
+
+          <p className="text-sm text-gray-400">
+            {title}
+          </p>
+
+          <p className="text-3xl font-bold text-white mt-2">
+            {value}
+          </p>
+
+        </div>
+
+        <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-xl">
+          {icon}
+        </div>
+
+      </div>
+
+    </div>
+  );
+}
+
+// =====================================================
+// HEALTH CARD
+// =====================================================
+
+function HealthCard({
+  title,
+  value,
+  description,
+  icon,
+}) {
+  return (
+    <div className="bg-[#111827] border border-white/10 rounded-2xl p-5 shadow-xl">
+
+      <div className="flex items-center gap-3">
+
+        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-lg">
+          {icon}
+        </div>
+
+        <div>
+
+          <p className="text-sm text-gray-400">
+            {title}
+          </p>
+
+          <p className="text-2xl font-bold text-white">
+            {value}
+          </p>
+
+        </div>
+
+      </div>
+
+      <p className="text-xs text-gray-500 mt-3">
+        {description}
+      </p>
+
+    </div>
+  );
+}
+
+// =====================================================
+// PROGRESS ROW
+// =====================================================
+
+function ProgressRow({
+  label,
+  value,
+  total,
+  color,
+}) {
+  const percentage =
+    total > 0
+      ? Math.min(
+          100,
+          (value / total) * 100
+        )
+      : 0;
+
+  return (
+    <div>
+
+      <div className="flex items-center justify-between mb-2">
+
+        <span className="text-sm text-gray-400">
+          {label}
+        </span>
+
+        <span className="text-xs text-gray-500">
+          {value}{" "}
+          ({percentage.toFixed(1)}%)
+        </span>
+
+      </div>
+
+      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+
+        <div
+          className={`h-full ${color} rounded-full transition-all duration-500`}
+          style={{
+            width: `${percentage}%`,
+          }}
+        />
+
+      </div>
+
+    </div>
+  );
+}
