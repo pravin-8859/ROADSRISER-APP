@@ -3,9 +3,14 @@ import bcrypt from "bcrypt";
 
 const mechanicSchema = new mongoose.Schema(
   {
+    // =====================================================
+    // BASIC PROFILE
+    // =====================================================
+
     name: {
       type: String,
       trim: true,
+      default: "",
     },
 
     email: {
@@ -29,23 +34,117 @@ const mechanicSchema = new mongoose.Schema(
       type: String,
       trim: true,
       uppercase: true,
+      default: "",
     },
 
     garageName: {
       type: String,
       trim: true,
+      default: "",
     },
 
     address: {
       type: String,
       trim: true,
+      default: "",
     },
 
-    // Mechanic profile photo
     profilePhoto: {
       type: String,
       default: "",
     },
+
+    // =====================================================
+    // PERMANENT GARAGE / SHOP LOCATION
+    // =====================================================
+
+    garageLocation: {
+      type: {
+        type: String,
+        enum: ["Point"],
+      },
+
+      coordinates: {
+        type: [Number],
+        validate: {
+          validator: function (value) {
+            // Location optional hai.
+            if (value === undefined || value === null) {
+              return true;
+            }
+
+            return (
+              Array.isArray(value) &&
+              value.length === 2 &&
+              Number.isFinite(value[0]) &&
+              Number.isFinite(value[1]) &&
+              value[0] >= -180 &&
+              value[0] <= 180 &&
+              value[1] >= -90 &&
+              value[1] <= 90
+            );
+          },
+
+          message:
+            "Garage coordinates must be [longitude, latitude].",
+        },
+      },
+    },
+
+    // =====================================================
+    // CURRENT / LIVE MECHANIC LOCATION
+    // =====================================================
+
+    currentLocation: {
+      type: {
+        type: String,
+        enum: ["Point"],
+      },
+
+      coordinates: {
+        type: [Number],
+        validate: {
+          validator: function (value) {
+            // Location optional hai.
+            if (value === undefined || value === null) {
+              return true;
+            }
+
+            return (
+              Array.isArray(value) &&
+              value.length === 2 &&
+              Number.isFinite(value[0]) &&
+              Number.isFinite(value[1]) &&
+              value[0] >= -180 &&
+              value[0] <= 180 &&
+              value[1] >= -90 &&
+              value[1] <= 90
+            );
+          },
+
+          message:
+            "Current coordinates must be [longitude, latitude].",
+        },
+      },
+    },
+
+    // =====================================================
+    // MECHANIC AVAILABILITY
+    // =====================================================
+
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+
+    lastLocationUpdate: {
+      type: Date,
+      default: null,
+    },
+
+    // =====================================================
+    // VERIFICATION
+    // =====================================================
 
     isVerified: {
       type: Boolean,
@@ -60,7 +159,10 @@ const mechanicSchema = new mongoose.Schema(
       type: Date,
     },
 
-    // Refresh token for authentication
+    // =====================================================
+    // AUTH
+    // =====================================================
+
     refreshToken: {
       type: String,
     },
@@ -70,8 +172,10 @@ const mechanicSchema = new mongoose.Schema(
   }
 );
 
-// Unique email index.
-// sparse = documents without email won't conflict.
+// =====================================================
+// EMAIL INDEX
+// =====================================================
+
 mechanicSchema.index(
   { email: 1 },
   {
@@ -80,7 +184,31 @@ mechanicSchema.index(
   }
 );
 
-// Hash password only when it is created/changed.
+// =====================================================
+// GEO-SPATIAL INDEXES
+// =====================================================
+
+mechanicSchema.index({
+  garageLocation: "2dsphere",
+});
+
+mechanicSchema.index({
+  currentLocation: "2dsphere",
+});
+
+// =====================================================
+// ONLINE + CURRENT LOCATION INDEX
+// =====================================================
+
+mechanicSchema.index({
+  isOnline: 1,
+  currentLocation: "2dsphere",
+});
+
+// =====================================================
+// PASSWORD HASHING
+// =====================================================
+
 mechanicSchema.pre("save", async function (next) {
   try {
     if (!this.isModified("password") || !this.password) {
@@ -100,7 +228,10 @@ mechanicSchema.pre("save", async function (next) {
   }
 });
 
-// Compare entered password with hashed password.
+// =====================================================
+// PASSWORD COMPARISON
+// =====================================================
+
 mechanicSchema.methods.matchPassword = async function (
   enteredPassword
 ) {

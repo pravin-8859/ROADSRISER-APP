@@ -1,5 +1,5 @@
 // src/pages/DashboardMechanic.jsx
-
+//import GarageLocationPicker from "./GarageLocationPicker";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FaHome,
@@ -29,7 +29,21 @@ import {
   acceptMechanicRequest,
   updateMechanicRequestStatus,
   logout,
+  getMechanicProfile,
+  updateGarageLocation,
+  updateCurrentLocation,
+  updateMechanicAvailability,
 } from "../api/mechanicApi";
+const menuItems = [
+  { name: "Dashboard", icon: FaHome },
+  { name: "Active Requests", icon: FaInbox },
+  { name: "Assigned Jobs", icon: FaBriefcase },
+  { name: "Parts Inventory", icon: FaBoxOpen },
+  { name: "Earnings", icon: FaWallet },
+  { name: "Profile & Settings", icon: FaUser },
+  { name: "Ratings & Reviews", icon: FaStar },
+  { name: "Help", icon: FaQuestionCircle },
+];
 
 export default function DashboardMechanic() {
   const [activeMenu, setActiveMenu] = useState("Dashboard");
@@ -45,6 +59,12 @@ export default function DashboardMechanic() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState("");
   const [toasts, setToasts] = useState([]);
+
+  const [garageLocation, setGarageLocation] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationStatus, setLocationStatus] = useState("Not set");
+  const watchIdRef = useRef(null);
+  const lastLocationSentRef = useRef(0);
 
   const [profile, setProfile] = useState(() => {
     try {
@@ -98,16 +118,338 @@ export default function DashboardMechanic() {
 
   const profileInputRef = useRef(null);
 
-  const menuItems = [
-    { name: "Dashboard", icon: FaHome },
-    { name: "Active Requests", icon: FaInbox },
-    { name: "Assigned Jobs", icon: FaBriefcase },
-    { name: "Parts Inventory", icon: FaBoxOpen },
-    { name: "Earnings", icon: FaWallet },
-    { name: "Profile & Settings", icon: FaUser },
-    { name: "Ratings & Reviews", icon: FaStar },
-    { name: "Help", icon: FaQuestionCircle },
-  ];
+  /* ============================= LOAD REAL PROFILE ============================= */
+
+  useEffect(() => {
+    loadMechanicProfile();
+
+    return () => {
+      stopLiveLocation();
+    };
+  }, []);
+
+  const loadMechanicProfile = async () => {
+    try {
+      const res = await getMechanicProfile();
+      const mech = res?.data?.mechanic;
+
+      if (!mech) return;
+
+      const nextProfile = {
+        name: mech.name || "",
+        garage: mech.garageName || "",
+        phone: mech.phone || "",
+        email: mech.email || "",
+        gst: mech.gst || "",
+        address: mech.address || "",
+        photo: mech.profilePhoto || profile.photo || "",
+      };
+
+      setProfile(nextProfile);
+      localStorage.setItem("mechanicProfile", JSON.stringify(nextProfile));
+
+      setGarageLocation(mech.garageLocation || null);
+      setAvailable(Boolean(mech.isOnline));
+      localStorage.setItem("mechanicAvailable", String(Boolean(mech.isOnline)));
+
+      if (mech.garageLocation?.coordinates?.length === 2) {
+        setLocationStatus("Garage location saved");
+      }
+
+      if (mech.isOnline) {
+        startLiveLocation();
+      }
+    } catch (error) {
+      console.error("Failed to load mechanic profile:", error);
+    }
+  };
+
+ /* ============================= GARAGE LOCATION ============================= */
+
+const saveGarageLocation = () => {
+  if (!navigator.geolocation) {
+    setLocationStatus("GPS is not supported");
+    notify(
+      "GPS is not supported by this browser.",
+      "error"
+    );
+    return;
+  }
+
+  setLocationLoading(true);
+  setLocationStatus("Detecting your location...");
+
+  const saveLocation = async (position) => {
+    try {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      console.log("GPS LOCATION:", {
+        latitude: lat,
+        longitude: lng,
+        accuracy: position.coords.accuracy,
+      });
+
+      const coordinates = [lng, lat];
+
+      setLocationStatus("Saving garage location...");
+
+      const res =
+        await updateGarageLocation(coordinates);
+
+      const saved =
+        res?.data?.garageLocation;
+
+      setGarageLocation(
+        saved || {
+          type: "Point",
+          coordinates,
+        }
+      );
+
+      setLocationStatus(
+        `Garage location saved • Accuracy: ${Math.round(
+          position.coords.accuracy || 0
+        )}m`
+      );
+
+      notify(
+        "Garage location saved successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Garage location save error:",
+        error?.response?.data || error
+      );
+
+      setLocationStatus(
+        "Failed to save location"
+      );
+
+      notify(
+        error?.response?.data?.message ||
+          "Could not save garage location.",
+        "error"
+      );
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleLocationError = (error) => {
+    console.error("GPS ERROR:", {
+      code: error.code,
+      message: error.message,
+    });
+
+    setLocationLoading(false);
+
+    if (error.code === 1) {
+      setLocationStatus(
+        "Location permission denied"
+      );
+
+      notify(
+        "Location permission denied. Please allow location access in your browser.",
+        "error"
+      );
+
+      return;
+    }
+
+    if (error.code === 2) {
+      setLocationStatus(
+        "Location unavailable"
+      );
+
+      notify(
+        "Could not determine your location. Make sure Windows Location is enabled.",
+        "error"
+      );
+
+      return;
+    }
+
+    if (error.code === 3) {
+      setLocationStatus(
+        "Location request timed out"
+      );
+
+      notify(
+        "Location took too long. Please try again.",
+        "error"
+      );
+
+      return;
+    }
+
+    setLocationStatus(
+      "Unable to detect location"
+    );
+
+    notify(
+      error.message ||
+        "Unable to detect your location.",
+      "error"
+    );
+  };
+
+  /*
+   * Laptop/desktop ke liye normal accuracy better hai.
+   * GPS hardware na hone par browser Wi-Fi/IP location
+   * se location lene ki koshish karega.
+   */
+  navigator.geolocation.getCurrentPosition(
+    saveLocation,
+    handleLocationError,
+    {
+      enableHighAccuracy: false,
+      timeout: 30000,
+      maximumAge: 60000,
+    }
+  );
+};
+
+
+/* ============================= LIVE LOCATION ============================= */
+
+const stopLiveLocation = () => {
+  if (
+    watchIdRef.current !== null &&
+    navigator.geolocation
+  ) {
+    navigator.geolocation.clearWatch(
+      watchIdRef.current
+    );
+
+    watchIdRef.current = null;
+  }
+};
+
+
+const startLiveLocation = () => {
+  if (!navigator.geolocation) {
+    console.warn(
+      "Live location is not supported."
+    );
+    return;
+  }
+
+  stopLiveLocation();
+
+  watchIdRef.current =
+    navigator.geolocation.watchPosition(
+      async (position) => {
+        const now = Date.now();
+
+        /*
+         * Location API ko baar-baar hit mat karo.
+         * Maximum once every 30 seconds.
+         */
+        if (
+          now - lastLocationSentRef.current <
+          30000
+        ) {
+          return;
+        }
+
+        lastLocationSentRef.current = now;
+
+        const coordinates = [
+          position.coords.longitude,
+          position.coords.latitude,
+        ];
+
+        console.log(
+          "LIVE LOCATION:",
+          coordinates
+        );
+
+        try {
+          await updateCurrentLocation(
+            coordinates
+          );
+
+          /*
+           * IMPORTANT:
+           * Yahan setLocationStatus mat karo.
+           *
+           * Ye garage location ka status hai.
+           * Agar yahan "Live location active"
+           * set karoge to garage status overwrite ho jayega.
+           */
+        } catch (error) {
+          console.error(
+            "Live location update failed:",
+            error?.response?.data || error
+          );
+        }
+      },
+
+      (error) => {
+        console.error(
+          "Live GPS error:",
+          error
+        );
+      },
+
+      {
+        enableHighAccuracy: false,
+        maximumAge: 30000,
+        timeout: 30000,
+      }
+    );
+};
+
+
+/* ============================= AVAILABILITY ============================= */
+
+const setAvailability = async (next) => {
+  try {
+    setActionLoading(
+      "availability"
+    );
+
+    await updateMechanicAvailability(
+      next
+    );
+
+    setAvailable(next);
+
+    localStorage.setItem(
+      "mechanicAvailable",
+      String(next)
+    );
+
+    if (next) {
+      startLiveLocation();
+
+      notify(
+        "You are now online and accepting requests."
+      );
+    } else {
+      stopLiveLocation();
+
+      notify(
+        "You are now offline and not accepting requests.",
+        "error"
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Availability error:",
+      error?.response?.data || error
+    );
+
+    notify(
+      error?.response?.data?.message ||
+        "Could not update availability.",
+      "error"
+    );
+  } finally {
+    setActionLoading("");
+  }
+};
 
   /* ============================= TOAST ============================= */
 
@@ -147,11 +489,11 @@ export default function DashboardMechanic() {
       const data = res?.data?.requests || [];
 
       const pending = data
-        .filter(
-          (request) =>
-            request.status === "pending" && !request.mechanic
-        )
-        .map(mapApiRequest);
+  .filter(
+    (request) =>
+      request.status === "pending"
+  )
+  .map(mapApiRequest);
 
       const assigned = data
         .filter(
@@ -302,21 +644,7 @@ export default function DashboardMechanic() {
   /* ============================= AVAILABILITY ============================= */
 
   const toggleAvailability = () => {
-    const next = !available;
-
-    setAvailable(next);
-
-    localStorage.setItem(
-      "mechanicAvailable",
-      String(next)
-    );
-
-    notify(
-      next
-        ? "Garage is now accepting requests."
-        : "Garage is now unavailable.",
-      next ? "success" : "error"
-    );
+    setAvailability(!available);
   };
 
   /* ============================= PROFILE ============================= */
@@ -822,14 +1150,18 @@ export default function DashboardMechanic() {
           )}
 
           {activeMenu === "Profile & Settings" && (
-            <ProfilePage
-              profile={profile}
-              onSave={saveProfile}
-              photoInputRef={profileInputRef}
-              onPhoto={handlePhoto}
-              onRemovePhoto={removePhoto}
-            />
-          )}
+  <ProfilePage
+    profile={profile}
+    onSave={saveProfile}
+    photoInputRef={profileInputRef}
+    onPhoto={handlePhoto}
+    onRemovePhoto={removePhoto}
+    garageLocation={garageLocation}
+    locationLoading={locationLoading}
+    locationStatus={locationStatus}
+    onSaveGarageLocation={saveGarageLocation}
+  />
+)}
 
           {activeMenu === "Ratings & Reviews" && (
             <ReviewsPage reviews={reviews} />
@@ -1803,6 +2135,10 @@ function ProfilePage({
   photoInputRef,
   onPhoto,
   onRemovePhoto,
+  garageLocation,
+  locationLoading,
+  locationStatus,
+  onSaveGarageLocation,
 }) {
   const [form, setForm] = useState(profile);
 
@@ -1907,6 +2243,86 @@ function ProfilePage({
           Recommended: clear square image, maximum 2MB.
         </p>
 
+      </div>
+
+      {/* GARAGE LOCATION */}
+
+      <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-2xl p-6 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <FaMapMarkerAlt className="text-indigo-600" />
+              Garage / Shop Location
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Save your exact garage location using your device GPS. This location will be used for nearby mechanic matching.
+            </p>
+          </div>
+
+          <button
+            onClick={onSaveGarageLocation}
+            disabled={locationLoading}
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {locationLoading ? (
+              <>
+                <FaSpinner className="animate-spin" />
+                Detecting...
+              </>
+            ) : (
+              <>
+                <FaMapMarkerAlt />
+                {garageLocation ? "Update Location" : "Use My Location"}
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="mt-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border dark:border-gray-700">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-gray-500">Status</p>
+              <p className="font-semibold mt-1">{locationStatus}</p>
+            </div>
+
+            {garageLocation?.coordinates?.length === 2 && (
+              <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-semibold">
+                GPS Saved
+              </span>
+            )}
+          </div>
+
+          {garageLocation?.coordinates?.length === 2 && (
+            <>
+              <p className="text-sm text-gray-500 mt-3">
+                Latitude: {Number(garageLocation.coordinates[1]).toFixed(6)}
+                <br />
+                Longitude: {Number(garageLocation.coordinates[0]).toFixed(6)}
+              </p>
+
+              <div className="mt-4 rounded-xl overflow-hidden border dark:border-gray-700 h-56">
+                <iframe
+                  title="Garage location"
+                  src={`https://www.google.com/maps?q=${garageLocation.coordinates[1]},${garageLocation.coordinates[0]}&z=16&output=embed`}
+                  className="w-full h-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              </div>
+
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${garageLocation.coordinates[1]},${garageLocation.coordinates[0]}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-3 text-sm text-indigo-600 hover:underline"
+              >
+                <FaMapMarkerAlt />
+                Open garage location in Google Maps
+              </a>
+            </>
+          )}
+        </div>
       </div>
 
       {/* FORM */}

@@ -4,7 +4,12 @@ import {
   sendOtp,
   mechanicSignup,
   mechanicLogin,
+  refreshMechanicToken,
   logout,
+  getMechanicProfile,
+  updateGarageLocation,
+  updateCurrentLocation,
+  updateMechanicAvailability,
 } from "../controllers/mechanicController.js";
 
 import {
@@ -17,7 +22,7 @@ import { verifyMechanic } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ================= AUTH =================
+/* ========================= AUTH ========================= */
 
 router.post("/send-otp", sendOtp);
 
@@ -25,9 +30,42 @@ router.post("/register", mechanicSignup);
 
 router.post("/login", mechanicLogin);
 
+router.post("/refresh", refreshMechanicToken);
+
 router.post("/logout", logout);
 
-// ================= PROTECTED REQUESTS =================
+/* ========================= PROFILE ========================= */
+
+router.get(
+  "/me",
+  verifyMechanic,
+  getMechanicProfile
+);
+
+/* ========================= LOCATION ========================= */
+
+// Permanent garage/shop location
+router.put(
+  "/location/garage",
+  verifyMechanic,
+  updateGarageLocation
+);
+
+// Live/current mechanic location
+router.put(
+  "/location/current",
+  verifyMechanic,
+  updateCurrentLocation
+);
+
+// Online / offline
+router.put(
+  "/availability",
+  verifyMechanic,
+  updateMechanicAvailability
+);
+
+/* ========================= REQUESTS ========================= */
 
 // Get pending + assigned requests
 router.get(

@@ -8,37 +8,158 @@ const API = axios.create({
   withCredentials: true,
 });
 
-// Automatically attach logged-in user's token
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (
+  error,
+  token = null
+) => {
+  failedQueue.forEach(
+    (promise) => {
+      if (error) {
+        promise.reject(error);
+      } else {
+        promise.resolve(token);
+      }
+    }
+  );
+
+  failedQueue = [];
+};
+
+// =====================================================
+// REQUEST
+// =====================================================
+
 API.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("token");
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization =
+        `Bearer ${token}`;
     }
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) =>
+    Promise.reject(error)
 );
 
-// Handle expired token
+// =====================================================
+// RESPONSE / AUTO REFRESH
+// =====================================================
+
 API.interceptors.response.use(
   (response) => response,
 
-  (error) => {
-    if (error.response?.status === 401) {
-      const role = localStorage.getItem("role");
+  async (error) => {
+    const originalRequest =
+      error.config;
 
-      if (role === "user") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
+    const status =
+      error.response?.status;
 
-        window.location.href = "/user/login";
-      }
+    const url =
+      originalRequest?.url || "";
+
+    const role =
+      localStorage.getItem("role");
+
+    // Don't refresh refresh/login requests
+    if (
+      status !== 401 ||
+      originalRequest?._retry ||
+      url.includes("/users/refresh") ||
+      url.includes("/users/login")
+    ) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    // Only user requests use this API
+    if (role !== "user") {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+
+    // Another request is already refreshing
+    if (isRefreshing) {
+      return new Promise(
+        (resolve, reject) => {
+          failedQueue.push({
+            resolve,
+            reject,
+          });
+        }
+      ).then((newToken) => {
+        originalRequest.headers.Authorization =
+          `Bearer ${newToken}`;
+
+        return API(
+          originalRequest
+        );
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const response =
+        await API.post(
+          "/users/refresh"
+        );
+
+      const newToken =
+        response.data?.accessToken;
+
+      if (!newToken) {
+        throw new Error(
+          "No access token received"
+        );
+      }
+
+      localStorage.setItem(
+        "token",
+        newToken
+      );
+
+      processQueue(
+        null,
+        newToken
+      );
+
+      originalRequest.headers.Authorization =
+        `Bearer ${newToken}`;
+
+      return API(
+        originalRequest
+      );
+    } catch (refreshError) {
+      processQueue(
+        refreshError,
+        null
+      );
+
+      localStorage.removeItem(
+        "token"
+      );
+
+      localStorage.removeItem(
+        "role"
+      );
+
+      window.location.href =
+        "/user/login";
+
+      return Promise.reject(
+        refreshError
+      );
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
 

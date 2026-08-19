@@ -27,6 +27,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    // Refresh token for persistent login
+    refreshToken: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

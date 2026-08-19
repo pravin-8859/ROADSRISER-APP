@@ -5,7 +5,10 @@ import jwt from "jsonwebtoken";
 
 let otpStore = {};
 
-// ================================ SEND OTP ================================
+// =====================================================
+// SEND OTP
+// =====================================================
+
 export const sendOtp = async (req, res) => {
   try {
     const { phone } = req.body;
@@ -39,7 +42,10 @@ export const sendOtp = async (req, res) => {
   }
 };
 
-// ================================ REGISTER ================================
+// =====================================================
+// REGISTER
+// =====================================================
+
 export const registerUser = async (req, res) => {
   try {
     const {
@@ -70,7 +76,6 @@ export const registerUser = async (req, res) => {
     const cleanEmail = email.toLowerCase().trim();
     const cleanPhone = phone?.trim() || undefined;
 
-    // Check email
     const emailExists = await User.findOne({
       email: cleanEmail,
     });
@@ -81,7 +86,6 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Check phone only when provided
     if (cleanPhone) {
       const phoneExists = await User.findOne({
         phone: cleanPhone,
@@ -94,7 +98,10 @@ export const registerUser = async (req, res) => {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      10
+    );
 
     const user = await User.create({
       name: name.trim(),
@@ -128,7 +135,10 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// ================================= LOGIN =================================
+// =====================================================
+// LOGIN
+// =====================================================
+
 export const loginUser = async (req, res) => {
   try {
     const {
@@ -165,21 +175,50 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
+    // ================= ACCESS TOKEN =================
+
+    const accessToken = jwt.sign(
       {
-        id: user._id,
+        id: String(user._id),
         type: "user",
       },
-      process.env.JWT_SECRET,
+      process.env.JWT_ACCESS_SECRET,
       {
-        expiresIn: "1d",
+        expiresIn: "15m",
       }
     );
+
+    // ================= REFRESH TOKEN =================
+
+    const refreshToken = jwt.sign(
+      {
+        id: String(user._id),
+        type: "user",
+      },
+      process.env.JWT_REFRESH_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    user.refreshToken = refreshToken;
+
+    await user.save();
+
+    // ================= COOKIE =================
+
+    res.cookie("rr_user_refresh", refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     return res.json({
       success: true,
       message: "Login successful",
-      token,
+      token: accessToken,
+      accessToken,
 
       user: {
         id: user._id,
@@ -197,10 +236,120 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// ================================ GET ME ================================
+// =====================================================
+// REFRESH USER TOKEN
+// =====================================================
+
+export const refreshUserToken = async (req, res) => {
+  try {
+    const token = req.cookies?.rr_user_refresh;
+
+    if (!token) {
+      return res.status(401).json({
+        message: "Refresh token missing",
+      });
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_REFRESH_SECRET
+    );
+
+    if (
+      !decoded.id ||
+      decoded.type !== "user"
+    ) {
+      return res.status(401).json({
+        message: "Invalid refresh token",
+      });
+    }
+
+    const user = await User.findOne({
+      _id: decoded.id,
+      refreshToken: token,
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Refresh token is no longer valid",
+      });
+    }
+
+    const accessToken = jwt.sign(
+      {
+        id: String(user._id),
+        type: "user",
+      },
+      process.env.JWT_ACCESS_SECRET,
+      {
+        expiresIn: "15m",
+      }
+    );
+
+    return res.json({
+      success: true,
+      accessToken,
+    });
+  } catch (err) {
+    console.error(
+      "refreshUserToken error:",
+      err.message
+    );
+
+    return res.status(401).json({
+      message: "Invalid or expired refresh token",
+    });
+  }
+};
+
+// =====================================================
+// LOGOUT
+// =====================================================
+
+export const logoutUser = async (req, res) => {
+  try {
+    const token = req.cookies?.rr_user_refresh;
+
+    if (token) {
+      await User.findOneAndUpdate(
+        {
+          refreshToken: token,
+        },
+        {
+          $unset: {
+            refreshToken: "",
+          },
+        }
+      );
+    }
+
+    res.clearCookie("rr_user_refresh");
+
+    return res.json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (err) {
+    console.error(
+      "logoutUser error:",
+      err
+    );
+
+    return res.status(500).json({
+      message: "Logout failed",
+    });
+  }
+};
+
+// =====================================================
+// GET ME
+// =====================================================
+
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(
+      req.user.id
+    ).select("-password -refreshToken");
 
     if (!user) {
       return res.status(404).json({
@@ -221,7 +370,10 @@ export const getMe = async (req, res) => {
   }
 };
 
-// ============================= UPDATE PROFILE ============================
+// =====================================================
+// UPDATE PROFILE
+// =====================================================
+
 export const updateMe = async (req, res) => {
   try {
     const {
@@ -229,7 +381,9 @@ export const updateMe = async (req, res) => {
       phone,
     } = req.body;
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(
+      req.user.id
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -255,19 +409,24 @@ export const updateMe = async (req, res) => {
         !/^\d{10}$/.test(cleanPhone)
       ) {
         return res.status(400).json({
-          message: "Phone number must contain 10 digits",
+          message:
+            "Phone number must contain 10 digits",
         });
       }
 
       if (cleanPhone) {
-        const existingUser = await User.findOne({
-          phone: cleanPhone,
-          _id: { $ne: user._id },
-        });
+        const existingUser =
+          await User.findOne({
+            phone: cleanPhone,
+            _id: {
+              $ne: user._id,
+            },
+          });
 
         if (existingUser) {
           return res.status(400).json({
-            message: "Phone already registered",
+            message:
+              "Phone already registered",
           });
         }
 
@@ -281,7 +440,8 @@ export const updateMe = async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Profile updated successfully",
+      message:
+        "Profile updated successfully",
       user: {
         id: user._id,
         name: user.name,
@@ -290,13 +450,10 @@ export const updateMe = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("updateMe error:", err);
-
-    if (err.code === 11000) {
-      return res.status(400).json({
-        message: "Phone already registered",
-      });
-    }
+    console.error(
+      "updateMe error:",
+      err
+    );
 
     return res.status(500).json({
       message: "Failed to update profile",
