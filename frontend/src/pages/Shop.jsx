@@ -86,6 +86,7 @@ export default function Shop() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -548,7 +549,7 @@ export default function Shop() {
           QUOTE MODAL
       ===================================================== */}
       {selectedProduct && (
-        <QuoteModal
+        <ComingSoonModal
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
         />
@@ -661,9 +662,9 @@ function ProductCard({ product, onQuote }) {
 
           <button
             onClick={onQuote}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-600/20"
           >
-            Quote
+            Order Soon
             <FiArrowRight size={15} />
           </button>
 
@@ -716,85 +717,97 @@ function StatBox({ number, label }) {
 }
 
 /* =============================================================
-   QUOTE MODAL
+   COMING SOON MODAL
 ============================================================= */
 
-function QuoteModal({ product, onClose }) {
+function ComingSoonModal({ product, onClose }) {
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-md"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="coming-soon-title"
     >
-
       <div
-        className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
-        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl dark:bg-slate-900"
+        onMouseDown={(e) => e.stopPropagation()}
       >
-
-        {/* Header image */}
-        <div className="relative flex h-48 items-center justify-center bg-slate-100 dark:bg-slate-800">
+        {/* Top visual */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-slate-950 px-7 pb-8 pt-9 text-center text-white">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-blue-400/20 blur-3xl" />
 
           <button
+            type="button"
             onClick={onClose}
-            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-slate-700 transition hover:bg-black/20 dark:bg-white/10 dark:text-white"
+            aria-label="Close"
+            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition hover:bg-white/20"
           >
-            <FiX />
+            <FiX size={19} />
           </button>
 
-          <img
-            src={product.img}
-            alt={product.name}
-            className="h-36 w-36 object-contain"
-          />
+          <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-cyan-200 shadow-lg ring-1 ring-white/10">
+            <FiShoppingBag size={29} />
+          </div>
 
-        </div>
-
-        {/* Content */}
-        <div className="p-7">
-
-          <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-            {product.category}
+          <p className="relative mt-5 text-xs font-black uppercase tracking-[0.25em] text-blue-200">
+            RoadsRiser Shop
           </p>
 
-          <h2 className="mt-2 text-2xl font-black">
-            {product.name}
+          <h2
+            id="coming-soon-title"
+            className="relative mt-2 text-3xl font-black tracking-tight"
+          >
+            Ordering is coming soon
           </h2>
 
-          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-            {product.description}
+          <p className="relative mx-auto mt-3 max-w-sm text-sm leading-6 text-blue-100"
+          >
+            We’re preparing secure ordering and delivery so you can buy
+            roadside essentials directly through RoadsRiser.
           </p>
+        </div>
 
-          <div className="mt-5 rounded-2xl bg-slate-100 p-4 dark:bg-slate-800">
-
-            <div className="flex items-center justify-between">
-
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                Estimated price
-              </span>
-
-              <span className="text-xl font-black">
-                {product.price}
-              </span>
-
+        {/* Product preview */}
+        <div className="p-7">
+          <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-800/70">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-900">
+              <img
+                src={product.img}
+                alt={product.name}
+                className="h-12 w-12 object-contain"
+              />
             </div>
 
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                {product.category}
+              </p>
+              <h3 className="mt-1 truncate font-black text-slate-900 dark:text-white">
+                {product.name}
+              </h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {product.price}
+              </p>
+            </div>
           </div>
 
           <div className="mt-5 space-y-3">
-
-            <FeatureRow text="Availability confirmation" />
-            <FeatureRow text="Personalized quote" />
-            <FeatureRow text="Delivery/support options" />
-
+            <FeatureRow text="Online ordering is being prepared" />
+            <FeatureRow text="Secure payment & delivery will be added" />
+            <FeatureRow text="RoadRiser roadside assistance is already available" />
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-3">
-
             <button
+              type="button"
               onClick={onClose}
               className="rounded-xl border border-slate-200 py-3 font-bold text-slate-600 transition hover:bg-slate-100 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              Close
+              Continue Browsing
             </button>
 
             <a
@@ -802,15 +815,15 @@ function QuoteModal({ product, onClose }) {
               className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-bold text-white transition hover:bg-blue-500"
             >
               <FiPhone />
-              Contact
+              Contact Us
             </a>
-
           </div>
 
+          <p className="mt-4 text-center text-xs text-slate-400">
+            No order or payment has been placed.
+          </p>
         </div>
-
       </div>
-
     </div>
   );
 }

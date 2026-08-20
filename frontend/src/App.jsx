@@ -27,6 +27,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ScrollToTop from "./components/ScrollToTop";
 import SOSButton from "./components/SOSButton";
 import ProtectedRoute from "./components/ProtectedRoute";
+import UserProtectedRoute from "./components/UserProtectedRoute";
 
 
 const handleHelpRequest = (data) => {
@@ -154,13 +155,15 @@ function AppLayout() {
           />
 
           <Route
-            path="/request-help"
-            element={
-              <RequestHelp
-                onSubmit={handleHelpRequest}
-              />
-            }
-          />
+  path="/request-help"
+  element={
+    <UserProtectedRoute>
+      <RequestHelp
+        onSubmit={handleHelpRequest}
+      />
+    </UserProtectedRoute>
+  }
+/>
 
           <Route
             path="/"

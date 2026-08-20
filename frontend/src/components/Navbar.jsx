@@ -181,41 +181,87 @@ const Navbar = () => {
             `}
           >
             {/* =====================================
-                LOGO
-            ===================================== */}
-            <Link
-              to="/"
-              className="flex items-center gap-3 shrink-0 group"
-            >
-              <div
-                className="
-                  w-11 h-11
-                  rounded-xl
-                  flex items-center justify-center
-                  bg-gradient-to-br from-white to-gray-300
-                  shadow-lg
-                  group-hover:scale-105
-                  group-hover:rotate-1
-                  transition-all duration-300
-                "
-              >
-                <img
-                  src={logo}
-                  alt="RoadsRiser"
-                  className="w-9 h-9 object-contain"
-                />
-              </div>
+    LOGO
+===================================== */}
+<Link
+  to="/"
+  className="flex items-center gap-3 shrink-0 group"
+>
+  {/* Logo Container */}
+  <div
+    className="
+      relative
+      w-14 h-14
+      rounded-2xl
+      flex items-center justify-center
+      bg-gradient-to-br from-white via-gray-100 to-gray-300
+      border border-white/20
+      shadow-[0_8px_25px_rgba(0,0,0,0.25)]
+      transition-all duration-300
+      group-hover:scale-110
+      group-hover:-translate-y-0.5
+      group-hover:shadow-[0_12px_35px_rgba(59,130,246,0.30)]
+    "
+  >
+    {/* Soft Glow */}
+    <div
+      className="
+        absolute
+        inset-0
+        rounded-2xl
+        bg-blue-500/10
+        blur-md
+        opacity-0
+        group-hover:opacity-100
+        transition-opacity duration-300
+      "
+    />
 
-              <div className="leading-none">
-                <div className="text-xl font-extrabold tracking-tight text-white">
-                  Roads<span className="text-blue-500">Riser</span>
-                </div>
+    {/* Logo */}
+    <img
+      src={logo}
+      alt="RoadsRiser"
+      className="
+        relative
+        z-10
+        w-12 h-12
+        object-contain
+        drop-shadow-[0_3px_5px_rgba(0,0,0,0.25)]
+        transition-transform duration-300
+        group-hover:scale-105
+      "
+    />
+  </div>
 
-                <div className="hidden sm:block text-[9px] uppercase tracking-[0.22em] text-gray-500 mt-1">
-                  Roadside Assistance
-                </div>
-              </div>
-            </Link>
+  {/* Brand Name */}
+  <div className="leading-none">
+    <div
+      className="
+        text-xl sm:text-2xl
+        font-extrabold
+        tracking-tight
+        text-white
+        transition-all duration-300
+        group-hover:text-blue-50
+      "
+    >
+      Roads<span className="text-blue-500">Riser</span>
+    </div>
+
+    <div
+      className="
+        hidden sm:block
+        text-[9px]
+        uppercase
+        tracking-[0.22em]
+        text-gray-400
+        mt-1.5
+      "
+    >
+      Roadside Assistance
+    </div>
+  </div>
+</Link>
 
             {/* =====================================
                 DESKTOP NAVIGATION

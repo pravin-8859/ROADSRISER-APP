@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FiArrowRight,
   FiCheckCircle,
@@ -13,6 +13,7 @@ import {
   FiTruck,
   FiDroplet,
   FiNavigation,
+  FiX,
 } from "react-icons/fi";
 
 import tiremech from "../assets/tiremech.jpg";
@@ -28,7 +29,7 @@ import engineOil from "../assets/engine-oil.png";
 const heroSlides = [
   {
     image: findnearbymech,
-    eyebrow: "ROADSIDER ASSISTANCE",
+    eyebrow: "ROADSIDE ASSISTANCE",
     title: "Stranded on the road?",
     highlight: "We've got you.",
     description:
@@ -69,7 +70,8 @@ const services = [
   },
   {
     title: "Battery Assistance",
-    description: "Jump-start or battery assistance to get your vehicle moving.",
+    description:
+      "Jump-start or battery assistance to get your vehicle moving.",
     image: battery,
     icon: FiBattery,
   },
@@ -87,13 +89,15 @@ const services = [
   },
   {
     title: "Towing",
-    description: "Reliable towing assistance when your vehicle cannot move.",
+    description:
+      "Reliable towing assistance when your vehicle cannot move.",
     image: tiremech,
     icon: FiTruck,
   },
   {
     title: "Emergency Help",
-    description: "Get connected with roadside assistance around you.",
+    description:
+      "Get connected with roadside assistance around you.",
     image: help24hr,
     icon: FiNavigation,
   },
@@ -103,53 +107,65 @@ const steps = [
   {
     number: "01",
     title: "Request Help",
-    description: "Tell us what happened and share your location.",
+    description:
+      "Tell us what happened and share your location.",
     icon: FiTool,
   },
   {
     number: "02",
     title: "Get Matched",
-    description: "We connect you with an available mechanic nearby.",
+    description:
+      "We connect you with an available mechanic nearby.",
     icon: FiMapPin,
   },
   {
     number: "03",
     title: "Track Assistance",
-    description: "Keep an eye on your mechanic and their arrival.",
+    description:
+      "Keep an eye on your mechanic and their arrival.",
     icon: FiNavigation,
   },
   {
     number: "04",
     title: "Get Back On Road",
-    description: "Your mechanic resolves the problem and you're ready to go.",
+    description:
+      "Your mechanic resolves the problem and you're ready to go.",
     icon: FiCheckCircle,
   },
 ];
 
 const testimonials = [
   {
-    text: "RoadsRiser made getting roadside help incredibly simple. I knew where my mechanic was the whole time.",
+    text:
+      "RoadsRiser made getting roadside help incredibly simple. I knew where my mechanic was the whole time.",
     name: "Ravi S.",
     role: "RoadsRiser User",
   },
   {
-    text: "The idea of finding a nearby verified mechanic when you're stuck is exactly what drivers need.",
+    text:
+      "The idea of finding a nearby verified mechanic when you're stuck is exactly what drivers need.",
     name: "Priya K.",
     role: "RoadsRiser User",
   },
   {
-    text: "Fast, simple and much less stressful than trying to find help on the road yourself.",
+    text:
+      "Fast, simple and much less stressful than trying to find help on the road yourself.",
     name: "Amit P.",
     role: "RoadsRiser User",
   },
 ];
 
 export default function MainSection() {
+  const navigate = useNavigate();
+
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+      setCurrentSlide(
+        (prev) => (prev + 1) % heroSlides.length
+      );
     }, 5000);
 
     return () => clearInterval(timer);
@@ -157,15 +173,83 @@ export default function MainSection() {
 
   const hero = heroSlides[currentSlide];
 
+  /*
+   * =========================================================
+   * REQUEST ASSISTANCE AUTH CHECK
+   * =========================================================
+   *
+   * Only logged-in USER can create a roadside request.
+   *
+   * Mechanic:
+   * - Cannot create user request
+   *
+   * Not logged in:
+   * - Login popup
+   *
+   * Logged-in user:
+   * - Directly open Request Help
+   */
+
+  // =========================================================
+  // PROTECTED USER ACTIONS
+  // =========================================================
+  // Only a logged-in USER can access assistance/request features.
+  // Guests and mechanics are sent to the same login popup first.
+
+  const [protectedDestination, setProtectedDestination] = useState("/request-help");
+
+  const handleProtectedAction = (destination = "/request-help") => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+
+    // Logged-in user -> continue directly.
+    if (token && role === "user") {
+      navigate(destination);
+      return;
+    }
+
+    // Guest/mechanic -> login required popup.
+    setProtectedDestination(destination);
+    setShowLoginPopup(true);
+  };
+
+  const handleAssistance = () => {
+    handleProtectedAction("/request-help");
+  };
+
+  const handleFindMechanic = () => {
+    handleProtectedAction("/mechanic-search");
+  };
+
+  const handleLoginRedirect = () => {
+    setShowLoginPopup(false);
+
+    navigate("/user/login", {
+      state: {
+        redirectTo: protectedDestination,
+      },
+    });
+  };
+
+  const handleSignupRedirect = () => {
+    setShowLoginPopup(false);
+
+    navigate("/user/signup", {
+      state: {
+        redirectTo: protectedDestination,
+      },
+    });
+  };
+
   return (
     <main className="overflow-hidden bg-slate-50 text-slate-900 transition-colors duration-500 dark:bg-slate-950 dark:text-white">
 
       {/* =========================================================
           HERO
       ========================================================= */}
+
       <section className="relative min-h-[calc(100vh-80px)] overflow-hidden">
 
-        {/* Background */}
         {heroSlides.map((slide, index) => (
           <div
             key={slide.title}
@@ -187,8 +271,8 @@ export default function MainSection() {
 
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_40%,rgba(59,130,246,0.28),transparent_35%)]" />
 
-        {/* Floating decorative circles */}
         <div className="absolute right-[8%] top-[18%] hidden h-32 w-32 rounded-full border border-white/20 bg-white/5 backdrop-blur-md lg:block animate-pulse" />
+
         <div className="absolute right-[16%] bottom-[20%] hidden h-20 w-20 rounded-full border border-blue-400/30 bg-blue-500/10 lg:block" />
 
         <div className="relative z-10 mx-auto flex min-h-[calc(100vh-80px)] max-w-7xl items-center px-6 py-20 lg:px-8">
@@ -202,6 +286,7 @@ export default function MainSection() {
 
             <h1 className="text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl lg:text-8xl">
               {hero.title}
+
               <span className="block bg-gradient-to-r from-blue-400 via-cyan-300 to-white bg-clip-text text-transparent">
                 {hero.highlight}
               </span>
@@ -213,26 +298,32 @@ export default function MainSection() {
 
             <div className="mt-9 flex flex-col gap-4 sm:flex-row">
 
-              <Link
-                to="/request-help"
+              {/* REQUEST ASSISTANCE */}
+
+              <button
+                type="button"
+                onClick={handleAssistance}
                 className="group inline-flex items-center justify-center gap-3 rounded-full bg-blue-600 px-7 py-4 font-bold text-white shadow-2xl shadow-blue-600/30 transition hover:-translate-y-1 hover:bg-blue-500"
               >
                 Request Assistance
                 <FiArrowRight className="transition group-hover:translate-x-1" />
-              </Link>
+              </button>
 
-              <Link
-                to="/mechanic-search"
+              {/* FIND MECHANIC */}
+
+              <button
+                type="button"
+                onClick={handleFindMechanic}
                 className="inline-flex items-center justify-center gap-3 rounded-full border border-white/30 bg-white/10 px-7 py-4 font-bold text-white backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/20"
               >
                 <FiMapPin />
                 Find a Mechanic
-              </Link>
+              </button>
 
             </div>
 
-            {/* Trust */}
             <div className="mt-12 flex flex-wrap gap-x-8 gap-y-4 text-sm text-slate-300">
+
               <span className="flex items-center gap-2">
                 <FiCheckCircle className="text-green-400" />
                 Verified Mechanics
@@ -247,14 +338,19 @@ export default function MainSection() {
                 <FiShield className="text-cyan-400" />
                 Secure Service
               </span>
+
             </div>
+
           </div>
 
-          {/* Floating visual card */}
+          {/* FLOATING CARD */}
+
           <div className="absolute bottom-10 right-8 hidden w-80 lg:block">
+
             <div className="rounded-3xl border border-white/20 bg-white/10 p-4 shadow-2xl backdrop-blur-2xl">
 
               <div className="relative h-44 overflow-hidden rounded-2xl">
+
                 <img
                   src={hero.image}
                   alt="Roadside assistance"
@@ -264,6 +360,7 @@ export default function MainSection() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
 
                 <div className="absolute bottom-4 left-4 flex items-center gap-3 text-white">
+
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 shadow-lg">
                     <FiCheckCircle />
                   </span>
@@ -272,14 +369,18 @@ export default function MainSection() {
                     <p className="text-sm font-semibold">
                       Assistance available
                     </p>
+
                     <p className="text-xs text-slate-300">
                       Finding help near you
                     </p>
                   </div>
+
                 </div>
+
               </div>
 
               <div className="mt-4 flex items-center justify-between text-sm text-white">
+
                 <span className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-green-400" />
                   Service online
@@ -288,14 +389,19 @@ export default function MainSection() {
                 <span className="text-slate-300">
                   Live
                 </span>
+
               </div>
 
             </div>
+
           </div>
+
         </div>
 
-        {/* Slider controls */}
+        {/* SLIDER CONTROLS */}
+
         <div className="absolute bottom-8 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+
           {heroSlides.map((_, index) => (
             <button
               key={index}
@@ -308,13 +414,17 @@ export default function MainSection() {
               }`}
             />
           ))}
+
         </div>
+
       </section>
 
       {/* =========================================================
           TRUST STRIP
       ========================================================= */}
+
       <section className="relative z-10 -mt-1 border-y border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900">
+
         <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-slate-200 dark:divide-white/10 md:grid-cols-4">
 
           {[
@@ -323,10 +433,14 @@ export default function MainSection() {
             ["Live", "Location Tracking"],
             ["Secure", "Service Experience"],
           ].map(([value, label]) => (
-            <div key={label} className="px-4 py-7 text-center">
+            <div
+              key={label}
+              className="px-4 py-7 text-center"
+            >
               <p className="text-xl font-black text-blue-600 dark:text-blue-400 sm:text-2xl">
                 {value}
               </p>
+
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
                 {label}
               </p>
@@ -334,14 +448,17 @@ export default function MainSection() {
           ))}
 
         </div>
+
       </section>
 
       {/* =========================================================
           SERVICES
       ========================================================= */}
+
       <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
 
         <div className="mx-auto max-w-2xl text-center">
+
           <span className="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
             Roadside Services
           </span>
@@ -357,10 +474,13 @@ export default function MainSection() {
             From a flat tyre to a vehicle breakdown, get connected with
             roadside assistance when you need it.
           </p>
+
         </div>
 
         <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+
           {services.map((service) => {
+
             const Icon = service.icon;
 
             return (
@@ -368,7 +488,9 @@ export default function MainSection() {
                 key={service.title}
                 className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-500 hover:-translate-y-2 hover:shadow-2xl dark:border-white/10 dark:bg-slate-900"
               >
+
                 <div className="relative h-52 overflow-hidden">
+
                   <img
                     src={service.image}
                     alt={service.title}
@@ -380,9 +502,11 @@ export default function MainSection() {
                   <div className="absolute bottom-4 left-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-xl">
                     <Icon size={22} />
                   </div>
+
                 </div>
 
                 <div className="p-6">
+
                   <h3 className="text-xl font-bold">
                     {service.title}
                   </h3>
@@ -391,28 +515,37 @@ export default function MainSection() {
                     {service.description}
                   </p>
 
-                  <Link
-                    to="/request-help"
+                  {/* PROTECTED ACTION */}
+
+                  <button
+                    type="button"
+                    onClick={handleAssistance}
                     className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-600 dark:text-blue-400"
                   >
                     Get assistance
                     <FiArrowRight className="transition group-hover:translate-x-1" />
-                  </Link>
+                  </button>
+
                 </div>
+
               </div>
             );
           })}
+
         </div>
+
       </section>
 
       {/* =========================================================
           HOW IT WORKS
       ========================================================= */}
+
       <section className="bg-slate-900 py-24 text-white dark:bg-black">
 
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
 
           <div className="max-w-2xl">
+
             <span className="text-sm font-bold uppercase tracking-[0.25em] text-blue-400">
               Simple Process
             </span>
@@ -425,16 +558,23 @@ export default function MainSection() {
               No complicated process. Tell us what happened and let
               RoadsRiser handle the rest.
             </p>
+
           </div>
 
           <div className="mt-16 grid gap-10 md:grid-cols-4">
+
             {steps.map((step) => {
+
               const Icon = step.icon;
 
               return (
-                <div key={step.number} className="relative">
+                <div
+                  key={step.number}
+                  className="relative"
+                >
 
                   <div className="mb-6 flex items-center justify-between">
+
                     <span className="text-5xl font-black text-white/10">
                       {step.number}
                     </span>
@@ -442,6 +582,7 @@ export default function MainSection() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600">
                       <Icon />
                     </div>
+
                   </div>
 
                   <h3 className="text-xl font-bold">
@@ -455,13 +596,17 @@ export default function MainSection() {
                 </div>
               );
             })}
+
           </div>
+
         </div>
+
       </section>
 
       {/* =========================================================
           LIVE TRACKING PROMO
       ========================================================= */}
+
       <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
 
         <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 via-indigo-700 to-slate-950 p-8 text-white shadow-2xl sm:p-12 lg:p-16">
@@ -472,6 +617,7 @@ export default function MainSection() {
           <div className="relative grid items-center gap-12 lg:grid-cols-2">
 
             <div>
+
               <span className="inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm backdrop-blur">
                 <FiNavigation className="mr-2" />
                 Live assistance
@@ -487,19 +633,23 @@ export default function MainSection() {
                 simple, transparent and stress-free.
               </p>
 
-              <Link
-                to="/request-help"
+              <button
+                type="button"
+                onClick={handleAssistance}
                 className="mt-8 inline-flex items-center gap-3 rounded-full bg-white px-7 py-4 font-bold text-blue-700 transition hover:-translate-y-1 hover:shadow-xl"
               >
                 Request Assistance
                 <FiArrowRight />
-              </Link>
+              </button>
+
             </div>
 
             <div className="relative">
+
               <div className="overflow-hidden rounded-3xl border border-white/20 bg-white/10 p-3 shadow-2xl backdrop-blur-xl">
 
                 <div className="relative h-72 overflow-hidden rounded-2xl">
+
                   <img
                     src={realtimeTracking}
                     alt="Real-time tracking"
@@ -511,7 +661,9 @@ export default function MainSection() {
                   <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/20 bg-black/30 p-4 backdrop-blur-xl">
 
                     <div className="flex items-center justify-between">
+
                       <div className="flex items-center gap-3">
+
                         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500">
                           <FiNavigation />
                         </span>
@@ -520,34 +672,44 @@ export default function MainSection() {
                           <p className="font-semibold">
                             Mechanic is on the way
                           </p>
+
                           <p className="text-xs text-slate-300">
                             Live location active
                           </p>
                         </div>
+
                       </div>
 
                       <span className="text-sm font-bold text-green-400">
                         LIVE
                       </span>
+
                     </div>
 
                   </div>
+
                 </div>
+
               </div>
+
             </div>
 
           </div>
+
         </div>
+
       </section>
 
       {/* =========================================================
           WHY ROADSRISER
       ========================================================= */}
+
       <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
 
         <div className="grid items-center gap-14 lg:grid-cols-2">
 
           <div className="relative">
+
             <div className="absolute -inset-5 rounded-[2rem] bg-blue-500/20 blur-3xl" />
 
             <img
@@ -557,19 +719,32 @@ export default function MainSection() {
             />
 
             <div className="absolute bottom-6 left-6 rounded-2xl border border-white/20 bg-black/50 p-5 text-white shadow-xl backdrop-blur-xl">
+
               <div className="flex items-center gap-3">
-                <FiShield className="text-green-400" size={24} />
+
+                <FiShield
+                  className="text-green-400"
+                  size={24}
+                />
+
                 <div>
-                  <p className="font-bold">Built around trust</p>
+                  <p className="font-bold">
+                    Built around trust
+                  </p>
+
                   <p className="text-xs text-slate-300">
                     Verified service experience
                   </p>
                 </div>
+
               </div>
+
             </div>
+
           </div>
 
           <div>
+
             <span className="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
               Why RoadsRiser
             </span>
@@ -610,34 +785,50 @@ export default function MainSection() {
                   "Clear communication and a simpler way to get help.",
                 ],
               ].map(([Icon, title, desc]) => (
-                <div key={title} className="flex gap-4">
+
+                <div
+                  key={title}
+                  className="flex gap-4"
+                >
+
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
                     <Icon />
                   </div>
 
                   <div>
-                    <h3 className="font-bold">{title}</h3>
+
+                    <h3 className="font-bold">
+                      {title}
+                    </h3>
+
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                       {desc}
                     </p>
+
                   </div>
+
                 </div>
+
               ))}
 
             </div>
+
           </div>
 
         </div>
+
       </section>
 
       {/* =========================================================
           TESTIMONIALS
       ========================================================= */}
+
       <section className="bg-slate-100 py-24 dark:bg-slate-900">
 
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
 
           <div className="text-center">
+
             <span className="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
               User Stories
             </span>
@@ -645,19 +836,28 @@ export default function MainSection() {
             <h2 className="mt-4 text-4xl font-black sm:text-5xl">
               Drivers trust the experience.
             </h2>
+
           </div>
 
           <div className="mt-14 grid gap-6 md:grid-cols-3">
 
             {testimonials.map((item) => (
+
               <div
                 key={item.name}
                 className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm transition hover:-translate-y-2 hover:shadow-xl dark:border-white/10 dark:bg-slate-950"
               >
+
                 <div className="flex gap-1 text-yellow-500">
+
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <FiStar key={star} fill="currentColor" size={17} />
+                    <FiStar
+                      key={star}
+                      fill="currentColor"
+                      size={17}
+                    />
                   ))}
+
                 </div>
 
                 <p className="mt-6 leading-7 text-slate-600 dark:text-slate-300">
@@ -665,19 +865,31 @@ export default function MainSection() {
                 </p>
 
                 <div className="mt-7 border-t border-slate-200 pt-5 dark:border-white/10">
-                  <p className="font-bold">{item.name}</p>
-                  <p className="text-sm text-slate-500">{item.role}</p>
+
+                  <p className="font-bold">
+                    {item.name}
+                  </p>
+
+                  <p className="text-sm text-slate-500">
+                    {item.role}
+                  </p>
+
                 </div>
+
               </div>
+
             ))}
 
           </div>
+
         </div>
+
       </section>
 
       {/* =========================================================
           FINAL CTA
       ========================================================= */}
+
       <section className="relative overflow-hidden bg-slate-950 px-6 py-28 text-center text-white">
 
         <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/20 blur-3xl" />
@@ -701,16 +913,112 @@ export default function MainSection() {
             towards getting back on the road.
           </p>
 
-          <Link
-            to="/request-help"
+          <button
+            type="button"
+            onClick={handleAssistance}
             className="mt-9 inline-flex items-center gap-3 rounded-full bg-blue-600 px-8 py-4 font-bold shadow-2xl shadow-blue-600/30 transition hover:-translate-y-1 hover:bg-blue-500"
           >
             Request Assistance
             <FiArrowRight />
-          </Link>
+          </button>
 
         </div>
+
       </section>
+
+      {/* =========================================================
+          LOGIN REQUIRED POPUP
+      ========================================================= */}
+
+      {showLoginPopup && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md"
+          onMouseDown={() => setShowLoginPopup(false)}
+        >
+
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-slate-900 p-7 text-white shadow-[0_30px_100px_rgba(0,0,0,0.6)]"
+          >
+
+            {/* Glow */}
+
+            <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-blue-600/20 blur-3xl" />
+
+            <div className="pointer-events-none absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-indigo-600/20 blur-3xl" />
+
+            {/* Close */}
+
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowLoginPopup(false);
+              }}
+              className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-400 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              aria-label="Close login popup"
+            >
+              <FiX size={19} />
+            </button>
+
+            <div className="relative">
+
+              {/* Icon */}
+
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600/10 text-blue-400 ring-1 ring-blue-500/20">
+                <FiShield size={30} />
+              </div>
+
+              <div className="mt-5 text-center">
+
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-400">
+                  Account Required
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black">
+                  Login to request assistance
+                </h2>
+
+                <p className="mt-3 text-sm leading-6 text-slate-400">
+                  Please login or create a RoadsRiser account before
+                  requesting roadside assistance.
+                </p>
+
+              </div>
+
+              <div className="mt-7 space-y-3">
+
+                <button
+                  type="button"
+                  onClick={handleLoginRedirect}
+                  className="group flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 px-5 py-3.5 font-bold text-white transition hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-600/20"
+                >
+                  Login to Continue
+                  <FiArrowRight className="transition group-hover:translate-x-1" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSignupRedirect}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-5 py-3.5 font-semibold text-slate-200 transition hover:bg-white/10"
+                >
+                  Create New Account
+                </button>
+
+              </div>
+
+              <p className="mt-5 text-center text-xs text-slate-500">
+                Your account helps us securely manage your assistance request.
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
 
     </main>
   );

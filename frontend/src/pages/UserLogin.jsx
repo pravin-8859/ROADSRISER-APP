@@ -1,9 +1,13 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import {
+  useNavigate,
+  Link,
+  useLocation,
+} from "react-router-dom";
+
 import API from "../services/api";
 
 import {
-  FaUser,
   FaEnvelope,
   FaLock,
   FaShieldAlt,
@@ -18,6 +22,7 @@ import logo from "../assets/logo.png";
 
 export default function UserLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [form, setForm] = useState({
     email: "",
@@ -59,14 +64,29 @@ export default function UserLogin() {
       const token = res?.data?.token;
 
       if (!token) {
-        throw new Error("Authentication token not received");
+        throw new Error(
+          "Authentication token not received"
+        );
       }
 
-      // Keep existing authentication system
+      /*
+       * =========================================
+       * STORE USER AUTHENTICATION
+       * =========================================
+       */
+
       localStorage.setItem("token", token);
       localStorage.setItem("role", "user");
 
-      // Store user information if backend provides it
+      // Remove stale mechanic authentication when switching to a user account.
+      localStorage.removeItem("accessToken");
+
+      /*
+       * =========================================
+       * STORE USER INFORMATION
+       * =========================================
+       */
+
       const user = res?.data?.user;
 
       if (user) {
@@ -82,18 +102,57 @@ export default function UserLogin() {
 
         localStorage.setItem(
           "user_id",
-          user.id || user._id || ""
+          user.id ||
+            user._id ||
+            ""
         );
       }
 
-      navigate("/user/dashboard", {
+      /*
+       * =========================================
+       * REDIRECT LOGIC
+       * =========================================
+       *
+       * If user came from:
+       *
+       * Home
+       *   ↓
+       * Request Assistance
+       *   ↓
+       * Login
+       *
+       * then after successful login:
+       *
+       *   ↓
+       * /request-help
+       *
+       * Otherwise:
+       *
+       *   ↓
+       * /user/dashboard
+       */
+
+      const redirectTo =
+        location.state?.redirectTo ||
+        "/user/dashboard";
+
+      navigate(redirectTo, {
         replace: true,
       });
 
     } catch (err) {
-      console.error("User login:", err);
+      console.error(
+        "User login:",
+        err
+      );
 
-      // Don't destroy an existing valid login
+      /*
+       * Remove invalid token only.
+       *
+       * Do not clear complete localStorage
+       * because other application data may exist.
+       */
+
       localStorage.removeItem("token");
 
       setError(
@@ -111,9 +170,9 @@ export default function UserLogin() {
   return (
     <div className="min-h-screen bg-[#020617] text-white px-4 py-10 md:py-14 relative overflow-hidden">
 
-      {/* =========================================
+      {/* =========================================================
           BACKGROUND GLOW
-      ========================================= */}
+      ========================================================= */}
 
       <div className="absolute top-[-180px] left-[-160px] w-[420px] h-[420px] rounded-full bg-blue-600/20 blur-[130px] pointer-events-none" />
 
@@ -121,9 +180,9 @@ export default function UserLogin() {
 
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[150px] pointer-events-none" />
 
-      {/* =========================================
+      {/* =========================================================
           MAIN CARD
-      ========================================= */}
+      ========================================================= */}
 
       <div className="relative max-w-6xl mx-auto">
 
@@ -131,13 +190,11 @@ export default function UserLogin() {
 
           <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
 
-            {/* =========================================
+            {/* =====================================================
                 LEFT BRAND SECTION
-            ========================================= */}
+            ===================================================== */}
 
             <div className="relative hidden lg:flex flex-col justify-between p-10 xl:p-12 bg-gradient-to-br from-blue-600/25 via-indigo-600/15 to-transparent border-r border-white/10 overflow-hidden">
-
-              {/* Decorative circles */}
 
               <div className="absolute -top-28 -right-28 w-72 h-72 rounded-full border border-blue-400/10" />
 
@@ -176,8 +233,6 @@ export default function UserLogin() {
 
                 </div>
 
-                {/* STATUS */}
-
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-400 text-xs font-semibold mb-5">
 
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -189,6 +244,7 @@ export default function UserLogin() {
                 <h1 className="text-4xl xl:text-5xl font-extrabold leading-tight">
 
                   Back on the
+
                   <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
                     road again.
                   </span>
@@ -227,8 +283,6 @@ export default function UserLogin() {
 
               </div>
 
-              {/* FOOTER MESSAGE */}
-
               <div className="relative mt-10 pt-8 border-t border-white/10">
 
                 <p className="text-sm text-gray-500 leading-relaxed">
@@ -240,9 +294,9 @@ export default function UserLogin() {
 
             </div>
 
-            {/* =========================================
+            {/* =====================================================
                 RIGHT LOGIN FORM
-            ========================================= */}
+            ===================================================== */}
 
             <div className="p-6 sm:p-8 md:p-10 xl:p-12">
 
@@ -410,7 +464,7 @@ export default function UserLogin() {
 
                 </div>
 
-                {/* LOGIN BUTTON */}
+                {/* LOGIN */}
 
                 <button
                   type="submit"
@@ -479,6 +533,11 @@ export default function UserLogin() {
 
                 <Link
                   to="/user/signup"
+                  state={{
+                    redirectTo:
+                      location.state?.redirectTo ||
+                      "/user/dashboard",
+                  }}
                   className="
                     inline-flex
                     items-center
@@ -537,32 +596,23 @@ export default function UserLogin() {
 
       </div>
 
-      {/* =========================================
+      {/* =========================================================
           INPUT STYLES
-      ========================================= */}
+      ========================================================= */}
 
       <style>{`
 
         .user-login-input {
           box-sizing: border-box;
-
           width: 100%;
           height: 56px;
-
           padding: 13px 15px 13px 50px;
-
           border-radius: 13px;
-
           border: 1px solid rgba(255,255,255,0.10);
-
           background: rgba(255,255,255,0.035);
-
           color: #ffffff;
-
           outline: none;
-
           font-size: 15px;
-
           transition:
             border-color 0.25s ease,
             background 0.25s ease,
@@ -580,9 +630,7 @@ export default function UserLogin() {
 
         .user-login-input:focus {
           border-color: rgba(59,130,246,0.75);
-
           background: rgba(59,130,246,0.045);
-
           box-shadow:
             0 0 0 3px rgba(59,130,246,0.10);
         }
@@ -595,7 +643,6 @@ export default function UserLogin() {
         input:-webkit-autofill,
         input:-webkit-autofill:hover,
         input:-webkit-autofill:focus {
-
           -webkit-text-fill-color: white;
 
           -webkit-box-shadow:
@@ -612,9 +659,9 @@ export default function UserLogin() {
 }
 
 
-/* =========================================
+/* =========================================================
    BENEFIT COMPONENT
-========================================= */
+========================================================= */
 
 function LoginBenefit({
   icon,
@@ -624,19 +671,21 @@ function LoginBenefit({
   return (
     <div className="flex items-center gap-4">
 
-      <div className="
-        shrink-0
-        w-11
-        h-11
-        rounded-xl
-        bg-white/5
-        border
-        border-white/10
-        flex
-        items-center
-        justify-center
-        text-blue-400
-      ">
+      <div
+        className="
+          shrink-0
+          w-11
+          h-11
+          rounded-xl
+          bg-white/5
+          border
+          border-white/10
+          flex
+          items-center
+          justify-center
+          text-blue-400
+        "
+      >
         {icon}
       </div>
 
