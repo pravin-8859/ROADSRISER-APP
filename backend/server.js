@@ -8,7 +8,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import mechanicRoutes from "./routes/mechanicRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
-
+import mechanicForgotRoutes from "./routes/mechanicForgotRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -64,6 +64,11 @@ app.use(
 app.use(
   "/api/mechanics",
   mechanicRoutes
+);
+
+app.use(
+  "/api/mechanics/password",
+  mechanicForgotRoutes
 );
 
 app.use(

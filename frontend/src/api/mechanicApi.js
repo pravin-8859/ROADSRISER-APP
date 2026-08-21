@@ -290,6 +290,48 @@ export const updateMechanicAvailability =
       }
     );
 
+
+// =====================================================
+// MECHANIC PASSWORD RESET
+// =====================================================
+
+export const sendMechanicResetOtp = (email) =>
+  API.post(
+    "/mechanics/password/send-otp",
+    {
+      email: email.trim().toLowerCase(),
+    }
+  );
+
+
+export const verifyMechanicResetOtp = (
+  email,
+  otp
+) =>
+  API.post(
+    "/mechanics/password/verify-otp",
+    {
+      email: email.trim().toLowerCase(),
+      otp: otp.trim(),
+    }
+  );
+
+
+export const resetMechanicPassword = (
+  email,
+  otp,
+  password
+) =>
+  API.post(
+    "/mechanics/password/reset-password",
+    {
+      email: email.trim().toLowerCase(),
+      otp: otp.trim(),
+      password,
+    }
+  );
+
+
 // =====================================================
 // REQUESTS
 // =====================================================

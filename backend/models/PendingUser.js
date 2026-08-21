@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
+const pendingUserSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -18,8 +18,6 @@ const userSchema = new mongoose.Schema(
 
     phone: {
       type: String,
-      unique: true,
-      sparse: true,
       trim: true,
     },
 
@@ -28,14 +26,14 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    emailVerified: {
-      type: Boolean,
-      default: false,
+    otpHash: {
+      type: String,
+      required: true,
     },
 
-    refreshToken: {
-      type: String,
-      default: null,
+    otpExpire: {
+      type: Date,
+      required: true,
     },
   },
   {
@@ -43,4 +41,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("User", userSchema);
+export default mongoose.model(
+  "PendingUser",
+  pendingUserSchema
+);

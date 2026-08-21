@@ -23,12 +23,13 @@ import MechanicSignup from "./pages/MechanicSignup";
 import MechanicLogin from "./pages/MechanicLogin";
 import DashboardMechanic from "./pages/DashboardMechanic";
 import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
+//import ResetPassword from "./pages/ResetPassword";
 import ScrollToTop from "./components/ScrollToTop";
 import SOSButton from "./components/SOSButton";
 import ProtectedRoute from "./components/ProtectedRoute";
 import UserProtectedRoute from "./components/UserProtectedRoute";
-
+import MechanicForgotPassword from "./pages/MechanicForgotPassword";
+import MechanicResetPassword from "./pages/MechanicResetPassword";
 
 const handleHelpRequest = (data) => {
   console.log("Help Request Submitted:", data);
@@ -121,11 +122,20 @@ function AppLayout() {
             path="/forgot-password"
             element={<ForgotPassword />}
           />
-
           <Route
+  path="/mechanic/forgot-password"
+  element={<MechanicForgotPassword />}
+/>
+
+<Route
+  path="/mechanic/reset-password"
+  element={<MechanicResetPassword />}
+/>
+
+          {/* <Route
             path="/reset-password/:token"
             element={<ResetPassword />}
-          />
+          /> */}
 
           {/* ================= PUBLIC ================= */}
 

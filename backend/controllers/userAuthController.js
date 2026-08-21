@@ -1,43 +1,362 @@
 import User from "../models/User.js";
-import { generateOtp } from "../utils/otp.js";
+
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import PendingUser from "../models/PendingUser.js";
+
+import {
+  generateOtp,
+  hashOtp,
+  verifyOtpHash,
+} from "../utils/otp.js";
+
+import { sendEmail } from "../utils/email.js";
+
+import { otpTemplate } from "../utils/emailTamplates.js";
 
 let otpStore = {};
 
 // =====================================================
 // SEND OTP
 // =====================================================
+// =====================================================
+// OLD PHONE OTP
+// =====================================================
 
 export const sendOtp = async (req, res) => {
-  try {
-    const { phone } = req.body;
+  return res.status(410).json({
+    message:
+      "Phone OTP signup is no longer used. Please use email verification.",
+  });
+};
 
-    if (!/^\d{10}$/.test(phone)) {
+
+// =====================================================
+// SEND SIGNUP EMAIL OTP
+// =====================================================
+
+export const sendSignupOtp = async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      password,
+    } = req.body;
+
+    // ================= VALIDATION =================
+
+    if (!name?.trim()) {
       return res.status(400).json({
-        error: "Invalid phone number",
+        message: "Name is required",
       });
     }
 
-    const otp = generateOtp(4);
+    if (!email?.trim()) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
 
-    otpStore[phone] = {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-    };
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        message:
+          "Password must be at least 6 characters",
+      });
+    }
 
-    console.log("USER DEBUG OTP:", otp);
+    const cleanEmail = email
+      .toLowerCase()
+      .trim();
+
+    const cleanPhone =
+      phone?.replace(/\D/g, "") || "";
+
+
+    // ================= EMAIL CHECK =================
+
+    const existingUser = await User.findOne({
+      email: cleanEmail,
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message:
+          "This email is already registered. Please login.",
+      });
+    }
+
+
+    // ================= PHONE CHECK =================
+
+    if (cleanPhone) {
+      if (!/^\d{10}$/.test(cleanPhone)) {
+        return res.status(400).json({
+          message:
+            "Phone number must contain 10 digits",
+        });
+      }
+
+      const phoneExists = await User.findOne({
+        phone: cleanPhone,
+      });
+
+      if (phoneExists) {
+        return res.status(400).json({
+          message:
+            "This phone number is already registered.",
+        });
+      }
+    }
+
+
+    // ================= OTP =================
+
+    const otp = generateOtp(6);
+
+    const otpHash = await hashOtp(otp);
+
+    const otpExpire = new Date(
+      Date.now() + 5 * 60 * 1000
+    );
+
+
+    // ================= PENDING USER =================
+
+    await PendingUser.findOneAndUpdate(
+      {
+        email: cleanEmail,
+      },
+      {
+        name: name.trim(),
+        email: cleanEmail,
+        phone: cleanPhone || undefined,
+        password,
+        otpHash,
+        otpExpire,
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+
+    // ================= EMAIL =================
+
+    const emailSent = await sendEmail({
+      to: cleanEmail,
+      subject:
+        "RoadsRiser - Verify Your Email",
+      html: otpTemplate(otp),
+    });
+
+
+    if (!emailSent) {
+      await PendingUser.deleteOne({
+        email: cleanEmail,
+      });
+
+      return res.status(500).json({
+        message:
+          "Unable to send verification email. Please try again.",
+      });
+    }
+
+
+    console.log(
+      "Signup verification email sent to:",
+      cleanEmail
+    );
+
 
     return res.json({
       success: true,
-      message: "OTP sent (debug mode)",
-      otp,
+      message:
+        "Verification OTP sent to your email.",
     });
+
   } catch (err) {
-    console.error("sendOtp error:", err);
+    console.error(
+      "sendSignupOtp error:",
+      err
+    );
 
     return res.status(500).json({
-      error: "Failed to send OTP",
+      message:
+        "Failed to send verification OTP",
+    });
+  }
+};
+
+
+// =====================================================
+// VERIFY SIGNUP OTP + CREATE USER
+// =====================================================
+
+export const verifySignupOtp = async (
+  req,
+  res
+) => {
+  try {
+    const {
+      email,
+      otp,
+    } = req.body;
+
+    if (!email?.trim()) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
+
+    if (!otp?.trim()) {
+      return res.status(400).json({
+        message: "OTP is required",
+      });
+    }
+
+
+    const cleanEmail = email
+      .toLowerCase()
+      .trim();
+
+
+    // ================= FIND PENDING USER =================
+
+    const pendingUser =
+      await PendingUser.findOne({
+        email: cleanEmail,
+      });
+
+
+    if (!pendingUser) {
+      return res.status(400).json({
+        message:
+          "Verification request not found. Please request a new OTP.",
+      });
+    }
+
+
+    // ================= OTP EXPIRY =================
+
+    if (
+      !pendingUser.otpExpire ||
+      new Date() >
+        pendingUser.otpExpire
+    ) {
+      await PendingUser.deleteOne({
+        _id: pendingUser._id,
+      });
+
+      return res.status(400).json({
+        message:
+          "OTP has expired. Please request a new OTP.",
+      });
+    }
+
+
+    // ================= OTP VERIFY =================
+
+    const isValidOtp =
+      await verifyOtpHash(
+        otp.trim(),
+        pendingUser.otpHash
+      );
+
+
+    if (!isValidOtp) {
+      return res.status(400).json({
+        message:
+          "Invalid OTP. Please check your email and try again.",
+      });
+    }
+
+
+    // ================= FINAL DUPLICATE CHECK =================
+
+    const existingUser =
+      await User.findOne({
+        email: cleanEmail,
+      });
+
+    if (existingUser) {
+      await PendingUser.deleteOne({
+        _id: pendingUser._id,
+      });
+
+      return res.status(400).json({
+        message:
+          "This email is already registered. Please login.",
+      });
+    }
+
+
+    // ================= PHONE DUPLICATE CHECK =================
+
+    if (pendingUser.phone) {
+      const phoneExists =
+        await User.findOne({
+          phone: pendingUser.phone,
+        });
+
+      if (phoneExists) {
+        return res.status(400).json({
+          message:
+            "This phone number is already registered.",
+        });
+      }
+    }
+
+
+    // ================= CREATE USER =================
+
+    const hashedPassword =
+      await bcrypt.hash(
+        pendingUser.password,
+        10
+      );
+
+
+    const user = await User.create({
+      name: pendingUser.name,
+      email: pendingUser.email,
+      phone: pendingUser.phone || undefined,
+      password: hashedPassword,
+      emailVerified: true,
+    });
+
+
+    // ================= REMOVE PENDING =================
+
+    await PendingUser.deleteOne({
+      _id: pendingUser._id,
+    });
+
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Email verified and account created successfully.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "",
+        emailVerified: true,
+      },
+    });
+
+  } catch (err) {
+    console.error(
+      "verifySignupOtp error:",
+      err
+    );
+
+    return res.status(500).json({
+      message:
+        "Unable to verify OTP and create account.",
     });
   }
 };

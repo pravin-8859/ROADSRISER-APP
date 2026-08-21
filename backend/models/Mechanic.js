@@ -55,7 +55,7 @@ const mechanicSchema = new mongoose.Schema(
     },
 
     // =====================================================
-    // PERMANENT GARAGE / SHOP LOCATION
+    // PERMANENT GARAGE LOCATION
     // =====================================================
 
     garageLocation: {
@@ -66,9 +66,9 @@ const mechanicSchema = new mongoose.Schema(
 
       coordinates: {
         type: [Number],
+
         validate: {
           validator: function (value) {
-            // Location optional hai.
             if (value === undefined || value === null) {
               return true;
             }
@@ -92,7 +92,7 @@ const mechanicSchema = new mongoose.Schema(
     },
 
     // =====================================================
-    // CURRENT / LIVE MECHANIC LOCATION
+    // CURRENT / LIVE LOCATION
     // =====================================================
 
     currentLocation: {
@@ -103,9 +103,9 @@ const mechanicSchema = new mongoose.Schema(
 
       coordinates: {
         type: [Number],
+
         validate: {
           validator: function (value) {
-            // Location optional hai.
             if (value === undefined || value === null) {
               return true;
             }
@@ -129,7 +129,7 @@ const mechanicSchema = new mongoose.Schema(
     },
 
     // =====================================================
-    // MECHANIC AVAILABILITY
+    // AVAILABILITY
     // =====================================================
 
     isOnline: {
@@ -151,12 +151,29 @@ const mechanicSchema = new mongoose.Schema(
       default: false,
     },
 
+    // Signup OTP
     otpHash: {
       type: String,
+      default: null,
     },
 
     otpExpire: {
       type: Date,
+      default: null,
+    },
+
+    // =====================================================
+    // PASSWORD RESET OTP
+    // =====================================================
+
+    resetOtpHash: {
+      type: String,
+      default: null,
+    },
+
+    resetOtpExpire: {
+      type: Date,
+      default: null,
     },
 
     // =====================================================
@@ -165,12 +182,14 @@ const mechanicSchema = new mongoose.Schema(
 
     refreshToken: {
       type: String,
+      default: null,
     },
   },
   {
     timestamps: true,
   }
 );
+
 
 // =====================================================
 // EMAIL INDEX
@@ -184,6 +203,7 @@ mechanicSchema.index(
   }
 );
 
+
 // =====================================================
 // GEO-SPATIAL INDEXES
 // =====================================================
@@ -196,20 +216,16 @@ mechanicSchema.index({
   currentLocation: "2dsphere",
 });
 
+
 // =====================================================
-// ONLINE + CURRENT LOCATION INDEX
+// ONLINE + LOCATION INDEX
 // =====================================================
 
 mechanicSchema.index({
   isOnline: 1,
-  activeRequest: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Request",
-  default: null,
-  index: true,
-},
   currentLocation: "2dsphere",
 });
+
 
 // =====================================================
 // PASSWORD HASHING
@@ -221,11 +237,9 @@ mechanicSchema.pre("save", async function (next) {
       return next();
     }
 
-    const saltRounds = 10;
-
     this.password = await bcrypt.hash(
       this.password,
-      saltRounds
+      10
     );
 
     next();
@@ -233,6 +247,7 @@ mechanicSchema.pre("save", async function (next) {
     next(err);
   }
 });
+
 
 // =====================================================
 // PASSWORD COMPARISON
@@ -250,6 +265,7 @@ mechanicSchema.methods.matchPassword = async function (
     this.password
   );
 };
+
 
 export default mongoose.model(
   "Mechanic",

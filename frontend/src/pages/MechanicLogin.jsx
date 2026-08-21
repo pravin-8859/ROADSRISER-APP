@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { loginMechanic } from "../api/mechanicApi";
-import { useNavigate } from "react-router-dom";
+import {
+  useNavigate,
+  Link,
+} from "react-router-dom";
 
 import {
   FaTools,
@@ -79,6 +82,7 @@ export default function MechanicLogin() {
         "mechanic"
       );
 
+      // Remove old user token
       localStorage.removeItem("token");
 
       // =========================
@@ -146,6 +150,10 @@ export default function MechanicLogin() {
         );
       }
 
+      // =========================
+      // GO TO DASHBOARD
+      // =========================
+
       nav("/mechanic/dashboard", {
         replace: true,
       });
@@ -156,17 +164,21 @@ export default function MechanicLogin() {
         error
       );
 
+      // Clean invalid authentication
       localStorage.removeItem(
         "accessToken"
       );
 
-      localStorage.removeItem("role");
+      localStorage.removeItem(
+        "role"
+      );
 
       setErr(
         error?.response?.data?.message ||
           error?.message ||
           "Invalid email or password"
       );
+
     } finally {
       setLoading(false);
     }
@@ -253,6 +265,7 @@ export default function MechanicLogin() {
                 <h1 className="text-4xl xl:text-5xl font-extrabold leading-tight">
 
                   Welcome
+
                   <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
                     back, partner.
                   </span>
@@ -430,6 +443,19 @@ export default function MechanicLogin() {
                   }
                 />
 
+                {/* FORGOT PASSWORD */}
+
+                <div className="flex justify-end -mt-2">
+
+                  <Link
+                    to="/mechanic/forgot-password"
+                    className="text-sm font-medium text-blue-400 hover:text-blue-300 hover:underline transition"
+                  >
+                    Forgot Password?
+                  </Link>
+
+                </div>
+
                 {/* LOGIN BUTTON */}
 
                 <button
@@ -525,10 +551,6 @@ export default function MechanicLogin() {
           width: 100%;
           height: 56px;
 
-          /*
-            IMPORTANT:
-            Icon ke liye proper left space
-          */
           padding: 13px 15px 13px 50px;
 
           border-radius: 13px;
