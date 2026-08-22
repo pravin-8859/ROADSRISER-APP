@@ -10,6 +10,7 @@ import {
   updateGarageLocation,
   updateCurrentLocation,
   updateMechanicAvailability,
+  getNearbyMechanics,
 } from "../controllers/mechanicController.js";
 
 import {
@@ -33,6 +34,15 @@ router.post("/login", mechanicLogin);
 router.post("/refresh", refreshMechanicToken);
 
 router.post("/logout", logout);
+
+// =====================================================
+// NEARBY MECHANICS
+// =====================================================
+
+router.get(
+  "/nearby",
+  getNearbyMechanics
+);
 
 /* ========================= PROFILE ========================= */
 

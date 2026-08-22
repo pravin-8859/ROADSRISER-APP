@@ -332,6 +332,24 @@ export const resetMechanicPassword = (
   );
 
 
+  // =====================================================
+// NEARBY MECHANICS
+// =====================================================
+
+export const getNearbyMechanics = ({
+  latitude,
+  longitude,
+  radius = 50,
+}) =>
+  API.get("/mechanics/nearby", {
+    params: {
+      lat: latitude,
+      lng: longitude,
+      radius,
+    },
+  });
+
+
 // =====================================================
 // REQUESTS
 // =====================================================

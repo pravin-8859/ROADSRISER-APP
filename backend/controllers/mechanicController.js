@@ -866,3 +866,210 @@ export const logout = async (
     });
   }
 };
+
+// =====================================================
+// FIND NEARBY MECHANICS
+// =====================================================
+
+export const getNearbyMechanics = async (req, res) => {
+  try {
+    const { lat, lng, radius = 50 } = req.query;
+
+    const latitude = Number(lat);
+    const longitude = Number(lng);
+    const maxRadius = Number(radius);
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid latitude and longitude are required",
+      });
+    }
+
+    if (
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid location coordinates",
+      });
+    }
+
+    const safeRadius =
+      Number.isFinite(maxRadius) &&
+      maxRadius > 0 &&
+      maxRadius <= 200
+        ? maxRadius
+        : 50;
+
+    const mechanics = await Mechanic.find({
+      isVerified: true,
+      isOnline: true,
+      $or: [
+        {
+          "currentLocation.coordinates": {
+            $exists: true,
+          },
+        },
+        {
+          "garageLocation.coordinates": {
+            $exists: true,
+          },
+        },
+      ],
+    }).select(
+      "name email phone garageName address profilePhoto isVerified isOnline currentLocation garageLocation"
+    );
+
+    const toRadians = (value) =>
+      (value * Math.PI) / 180;
+
+    const calculateDistance = (
+      lat1,
+      lon1,
+      lat2,
+      lon2
+    ) => {
+      const earthRadiusKm = 6371;
+
+      const dLat = toRadians(lat2 - lat1);
+      const dLon = toRadians(lon2 - lon1);
+
+      const a =
+        Math.sin(dLat / 2) *
+          Math.sin(dLat / 2) +
+        Math.cos(toRadians(lat1)) *
+          Math.cos(toRadians(lat2)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+
+      const c =
+        2 *
+        Math.atan2(
+          Math.sqrt(a),
+          Math.sqrt(1 - a)
+        );
+
+      return earthRadiusKm * c;
+    };
+
+    const nearbyMechanics = mechanics
+      .map((mechanic) => {
+        let coordinates = null;
+
+        // Prefer live/current location
+        if (
+          Array.isArray(
+            mechanic.currentLocation?.coordinates
+          ) &&
+          mechanic.currentLocation.coordinates.length ===
+            2
+        ) {
+          coordinates =
+            mechanic.currentLocation.coordinates;
+        }
+
+        // Otherwise use permanent garage location
+        if (
+          !coordinates &&
+          Array.isArray(
+            mechanic.garageLocation?.coordinates
+          ) &&
+          mechanic.garageLocation.coordinates.length ===
+            2
+        ) {
+          coordinates =
+            mechanic.garageLocation.coordinates;
+        }
+
+        if (!coordinates) {
+          return null;
+        }
+
+        const mechanicLongitude =
+          Number(coordinates[0]);
+
+        const mechanicLatitude =
+          Number(coordinates[1]);
+
+        if (
+          !Number.isFinite(
+            mechanicLongitude
+          ) ||
+          !Number.isFinite(
+            mechanicLatitude
+          )
+        ) {
+          return null;
+        }
+
+        const distance = calculateDistance(
+          latitude,
+          longitude,
+          mechanicLatitude,
+          mechanicLongitude
+        );
+
+        return {
+          id: mechanic._id,
+          name:
+            mechanic.garageName?.trim() ||
+            mechanic.name?.trim() ||
+            "Roadside Mechanic",
+          mechanicName:
+            mechanic.name?.trim() ||
+            "Mechanic",
+          email: mechanic.email || "",
+          phone: mechanic.phone || "",
+          address:
+            mechanic.address?.trim() ||
+            "Location available",
+          profilePhoto:
+            mechanic.profilePhoto || "",
+          available: mechanic.isOnline === true,
+          verified:
+            mechanic.isVerified === true,
+          distance: Number(
+            distance.toFixed(1)
+          ),
+          location: {
+            lat: mechanicLatitude,
+            lng: mechanicLongitude,
+          },
+        };
+      })
+      .filter(Boolean)
+      .filter(
+        (mechanic) =>
+          mechanic.distance <= safeRadius
+      )
+      .sort(
+        (a, b) =>
+          a.distance - b.distance
+      );
+
+    return res.json({
+      success: true,
+      count: nearbyMechanics.length,
+      radius: safeRadius,
+      mechanics: nearbyMechanics,
+    });
+  } catch (error) {
+    console.error(
+      "getNearbyMechanics error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to find nearby mechanics",
+    });
+  }
+};
