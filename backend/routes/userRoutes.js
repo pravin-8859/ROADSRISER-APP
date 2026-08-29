@@ -22,6 +22,9 @@ import {
   getActiveRequest,
   getHistory,
 } from "../controllers/requestController.js";
+import {
+  getNearbyMechanics,
+} from "../controllers/mechanicController.js";
 
 import {
   getUserNotifications,
@@ -99,6 +102,15 @@ router.post(
   sendOtp
 );
 
+// =====================================================
+// NEARBY MECHANICS
+// =====================================================
+
+router.get(
+  "/mechanics/nearby",
+  protect,
+  getNearbyMechanics
+);
 
 // =====================================================
 // LEGACY REGISTER

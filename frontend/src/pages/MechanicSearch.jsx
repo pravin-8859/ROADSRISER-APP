@@ -5,9 +5,20 @@ import React, {
 } from "react";
 
 import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Circle,
+  useMap,
+} from "react-leaflet";
+
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import {
   FaSearch,
   FaMapMarkerAlt,
-  FaStar,
   FaTools,
   FaPhone,
   FaDirections,
@@ -22,6 +33,95 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { getNearbyMechanics } from "../api/mechanicApi";
+
+
+// =====================================================
+// FIX LEAFLET DEFAULT MARKER ICON
+// =====================================================
+
+const userIcon = L.divIcon({
+  className: "rr-user-marker",
+  html: `
+    <div style="
+      width:42px;
+      height:42px;
+      border-radius:50%;
+      background:#2563eb;
+      border:4px solid white;
+      box-shadow:0 5px 18px rgba(0,0,0,.35);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:white;
+      font-size:17px;
+    ">
+      📍
+    </div>
+  `,
+  iconSize: [42, 42],
+  iconAnchor: [21, 21],
+  popupAnchor: [0, -21],
+});
+
+const mechanicIcon = L.divIcon({
+  className: "rr-mechanic-marker",
+  html: `
+    <div style="
+      width:40px;
+      height:40px;
+      border-radius:50%;
+      background:linear-gradient(135deg,#4f46e5,#2563eb);
+      border:4px solid white;
+      box-shadow:0 5px 18px rgba(0,0,0,.35);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:white;
+      font-size:16px;
+    ">
+      🔧
+    </div>
+  `,
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
+  popupAnchor: [0, -20],
+});
+
+
+// =====================================================
+// MAP CENTER CONTROLLER
+// =====================================================
+
+function MapCenter({
+  location,
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!location) return;
+
+    map.setView(
+      [
+        location.latitude,
+        location.longitude,
+      ],
+      13,
+      {
+        animate: true,
+      }
+    );
+  }, [
+    location,
+    map,
+  ]);
+
+  return null;
+}
+
+
+// =====================================================
+// MAIN COMPONENT
+// =====================================================
 
 export default function MechanicSearch() {
   const navigate = useNavigate();
@@ -47,6 +147,11 @@ export default function MechanicSearch() {
   const [location, setLocation] =
     useState(null);
 
+
+  // =====================================================
+  // SERVICES
+  // =====================================================
+
   const services = [
     "All",
     "Towing",
@@ -56,8 +161,9 @@ export default function MechanicSearch() {
     "General",
   ];
 
+
   // =====================================================
-  // GET USER LOCATION
+  // LOAD MECHANICS
   // =====================================================
 
   const loadMechanics = (
@@ -74,7 +180,7 @@ export default function MechanicSearch() {
     })
       .then((response) => {
         const data =
-          response.data;
+          response?.data;
 
         if (!data?.success) {
           throw new Error(
@@ -84,7 +190,9 @@ export default function MechanicSearch() {
         }
 
         setMechanics(
-          Array.isArray(data.mechanics)
+          Array.isArray(
+            data.mechanics
+          )
             ? data.mechanics
             : []
         );
@@ -98,8 +206,8 @@ export default function MechanicSearch() {
         setMechanics([]);
 
         setError(
-          err.response?.data?.message ||
-            err.message ||
+          err?.response?.data?.message ||
+            err?.message ||
             "Unable to find nearby mechanics"
         );
       })
@@ -108,8 +216,9 @@ export default function MechanicSearch() {
       });
   };
 
+
   // =====================================================
-  // BROWSER LOCATION
+  // GET USER LOCATION
   // =====================================================
 
   const getUserLocation = () => {
@@ -165,7 +274,7 @@ export default function MechanicSearch() {
           geoError.PERMISSION_DENIED
         ) {
           setError(
-            "Location permission denied. Please allow location access to find nearby mechanics."
+            "Location permission denied. Please allow location access."
           );
         } else if (
           geoError.code ===
@@ -189,22 +298,26 @@ export default function MechanicSearch() {
     );
   };
 
+
   // =====================================================
-  // INITIAL LOAD
+  // INITIAL LOCATION
   // =====================================================
 
   useEffect(() => {
     getUserLocation();
   }, []);
 
+
   // =====================================================
-  // FILTER
+  // FILTER MECHANICS
   // =====================================================
 
   const filteredMechanics =
     useMemo(() => {
       const query =
-        search.trim().toLowerCase();
+        search
+          .trim()
+          .toLowerCase();
 
       return mechanics.filter(
         (mechanic) => {
@@ -220,12 +333,17 @@ export default function MechanicSearch() {
               ?.toLowerCase()
               .includes(query);
 
-          // Backend currently does not store
-          // a service list in the mechanic model.
-          // Therefore service filtering remains
-          // available for future service data.
+          /*
+            Current backend mechanic model
+            does not have a services array.
+
+            So until services are added to
+            backend, don't fake-filter data.
+          */
+
           const matchesService =
-            selectedService === "All";
+            selectedService ===
+            "All";
 
           return (
             matchesSearch &&
@@ -239,29 +357,56 @@ export default function MechanicSearch() {
       selectedService,
     ]);
 
+
   // =====================================================
   // GET HELP
   // =====================================================
 
   const handleGetHelp = () => {
-    navigate("/request-help");
+    navigate(
+      "/request-help"
+    );
   };
 
+
   // =====================================================
-  // CALL
+  // CALL MECHANIC
   // =====================================================
 
-  const handleCall = (phone) => {
-    if (!phone) {
-      return;
-    }
+  const handleCall = (
+    phone
+  ) => {
+    if (!phone) return;
 
     window.location.href =
       `tel:${phone}`;
   };
 
+
+  // =====================================================
+  // MAP DEFAULT LOCATION
+  // =====================================================
+
+  const defaultCenter = [
+    27.4924,
+    77.6737,
+  ];
+
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+
   return (
-    <div className="min-h-screen bg-[#020617] text-white relative overflow-hidden">
+    <div
+      className="
+        min-h-screen
+        bg-[#020617]
+        text-white
+        relative
+        overflow-hidden
+      "
+    >
 
       {/* =================================================
           BACKGROUND
@@ -295,8 +440,9 @@ export default function MechanicSearch() {
         "
       />
 
+
       {/* =================================================
-          PAGE
+          MAIN
       ================================================= */}
 
       <div
@@ -316,7 +462,14 @@ export default function MechanicSearch() {
             HEADER
         ================================================= */}
 
-        <div className="text-center max-w-2xl mx-auto mb-10">
+        <div
+          className="
+            text-center
+            max-w-2xl
+            mx-auto
+            mb-10
+          "
+        >
 
           <div
             className="
@@ -336,8 +489,10 @@ export default function MechanicSearch() {
             "
           >
             <FaMapMarkerAlt />
+
             FIND HELP NEAR YOU
           </div>
+
 
           <h1
             className="
@@ -362,6 +517,7 @@ export default function MechanicSearch() {
             </span>
           </h1>
 
+
           <p
             className="
               mt-4
@@ -383,7 +539,13 @@ export default function MechanicSearch() {
             SEARCH
         ================================================= */}
 
-        <div className="max-w-4xl mx-auto mb-8">
+        <div
+          className="
+            max-w-4xl
+            mx-auto
+            mb-8
+          "
+        >
 
           <div
             className="
@@ -394,9 +556,12 @@ export default function MechanicSearch() {
             "
           >
 
-            {/* SEARCH */}
-
-            <div className="relative flex-1">
+            <div
+              className="
+                relative
+                flex-1
+              "
+            >
 
               <FaSearch
                 className="
@@ -407,6 +572,7 @@ export default function MechanicSearch() {
                   text-gray-500
                 "
               />
+
 
               <input
                 type="text"
@@ -436,6 +602,7 @@ export default function MechanicSearch() {
                 "
               />
 
+
               {search && (
                 <button
                   type="button"
@@ -458,12 +625,14 @@ export default function MechanicSearch() {
             </div>
 
 
-            {/* LOCATION */}
-
             <button
               type="button"
-              onClick={getUserLocation}
-              disabled={locationLoading}
+              onClick={
+                getUserLocation
+              }
+              disabled={
+                locationLoading
+              }
               className="
                 h-12
                 px-5
@@ -485,12 +654,18 @@ export default function MechanicSearch() {
 
               {locationLoading ? (
                 <>
-                  <FaSpinner className="animate-spin" />
+                  <FaSpinner
+                    className="
+                      animate-spin
+                    "
+                  />
+
                   Locating...
                 </>
               ) : (
                 <>
                   <FaMapMarkerAlt />
+
                   Use My Location
                 </>
               )}
@@ -503,7 +678,7 @@ export default function MechanicSearch() {
 
 
         {/* =================================================
-            SERVICE FILTER
+            FILTERS
         ================================================= */}
 
         <div
@@ -576,15 +751,23 @@ export default function MechanicSearch() {
             "
           >
 
-            <FaExclamationTriangle className="mt-0.5 shrink-0" />
+            <FaExclamationTriangle
+              className="
+                mt-0.5
+                shrink-0
+              "
+            />
 
             <div className="flex-1">
               {error}
             </div>
 
+
             <button
               type="button"
-              onClick={getUserLocation}
+              onClick={
+                getUserLocation
+              }
               className="
                 text-xs
                 font-semibold
@@ -601,7 +784,7 @@ export default function MechanicSearch() {
 
 
         {/* =================================================
-            CONTENT
+            CONTENT GRID
         ================================================= */}
 
         <div
@@ -613,7 +796,7 @@ export default function MechanicSearch() {
         >
 
           {/* =================================================
-              MAP AREA
+              REAL MAP
           ================================================= */}
 
           <div
@@ -629,68 +812,205 @@ export default function MechanicSearch() {
             "
           >
 
-            <div
+            <MapContainer
+              center={
+                location
+                  ? [
+                      location.latitude,
+                      location.longitude,
+                    ]
+                  : defaultCenter
+              }
+              zoom={
+                location
+                  ? 13
+                  : 11
+              }
+              scrollWheelZoom={true}
               className="
-                absolute
-                inset-0
-                bg-gradient-to-br
-                from-slate-900
-                via-slate-800
-                to-blue-950
+                h-full
+                min-h-[430px]
+                lg:min-h-[600px]
+                w-full
+                z-0
               "
             >
 
-              <div
-                className="
-                  absolute
-                  w-[140%]
-                  h-16
-                  bg-slate-700/60
-                  rotate-[-20deg]
-                  top-[42%]
-                  left-[-20%]
-                "
+              <TileLayer
+                attribution='&copy; OpenStreetMap contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              <div
-                className="
-                  absolute
-                  w-[140%]
-                  h-10
-                  bg-slate-700/50
-                  rotate-[28deg]
-                  top-[25%]
-                  left-[-20%]
-                "
+
+              <MapCenter
+                location={location}
               />
 
-              <div
-                className="
-                  absolute
-                  w-[130%]
-                  h-12
-                  bg-slate-700/50
-                  rotate-[5deg]
-                  top-[70%]
-                  left-[-15%]
-                "
-              />
 
-              <div
-                className="
-                  absolute
-                  w-8
-                  h-[130%]
-                  bg-slate-700/40
-                  rotate-[18deg]
-                  top-[-10%]
-                  left-[48%]
-                "
-              />
+              {/* USER */}
 
-              <div className="absolute inset-0 bg-blue-500/5" />
+              {location && (
+                <>
+                  <Marker
+                    position={[
+                      location.latitude,
+                      location.longitude,
+                    ]}
+                    icon={userIcon}
+                  >
+                    <Popup>
+                      <strong>
+                        Your Location
+                      </strong>
+                      <br />
+                      Searching nearby mechanics
+                    </Popup>
+                  </Marker>
 
-            </div>
+
+                  <Circle
+                    center={[
+                      location.latitude,
+                      location.longitude,
+                    ]}
+                    radius={3000}
+                    pathOptions={{
+                      color:
+                        "#2563eb",
+                      fillColor:
+                        "#2563eb",
+                      fillOpacity:
+                        0.06,
+                    }}
+                  />
+                </>
+              )}
+
+
+              {/* MECHANICS */}
+
+              {filteredMechanics.map(
+                (mechanic) => {
+                  const lat =
+                    Number(
+                      mechanic
+                        ?.location
+                        ?.lat
+                    );
+
+                  const lng =
+                    Number(
+                      mechanic
+                        ?.location
+                        ?.lng
+                    );
+
+                  if (
+                    !Number.isFinite(
+                      lat
+                    ) ||
+                    !Number.isFinite(
+                      lng
+                    )
+                  ) {
+                    return null;
+                  }
+
+                  return (
+                    <Marker
+                      key={
+                        mechanic.id
+                      }
+                      position={[
+                        lat,
+                        lng,
+                      ]}
+                      icon={
+                        mechanicIcon
+                      }
+                    >
+
+                      <Popup>
+
+                        <div
+                          style={{
+                            minWidth:
+                              "210px",
+                            color:
+                              "#111827",
+                          }}
+                        >
+
+                          <strong
+                            style={{
+                              fontSize:
+                                "15px",
+                            }}
+                          >
+                            {
+                              mechanic.name
+                            }
+                          </strong>
+
+
+                          <div
+                            style={{
+                              marginTop:
+                                "6px",
+                              fontSize:
+                                "12px",
+                              color:
+                                "#6b7280",
+                            }}
+                          >
+                            {
+                              mechanic
+                                .mechanicName
+                            }
+                          </div>
+
+
+                          <div
+                            style={{
+                              marginTop:
+                                "7px",
+                              fontSize:
+                                "12px",
+                            }}
+                          >
+                            📍{" "}
+                            {
+                              mechanic.distance
+                            }{" "}
+                            km away
+                          </div>
+
+
+                          <div
+                            style={{
+                              marginTop:
+                                "4px",
+                              color:
+                                "#16a34a",
+                              fontSize:
+                                "12px",
+                              fontWeight:
+                                "600",
+                            }}
+                          >
+                            ● Available now
+                          </div>
+
+                        </div>
+
+                      </Popup>
+
+                    </Marker>
+                  );
+                }
+              )}
+
+            </MapContainer>
 
 
             {/* MAP HEADER */}
@@ -701,9 +1021,11 @@ export default function MechanicSearch() {
                 top-4
                 left-4
                 right-4
+                z-[1000]
                 flex
                 justify-between
                 items-center
+                pointer-events-none
               "
             >
 
@@ -712,7 +1034,7 @@ export default function MechanicSearch() {
                   px-4
                   py-2
                   rounded-xl
-                  bg-black/50
+                  bg-black/65
                   backdrop-blur-md
                   border
                   border-white/10
@@ -723,14 +1045,18 @@ export default function MechanicSearch() {
                 Nearby Mechanics
               </div>
 
+
               <button
                 type="button"
-                onClick={getUserLocation}
+                onClick={
+                  getUserLocation
+                }
                 className="
+                  pointer-events-auto
                   w-10
                   h-10
                   rounded-xl
-                  bg-black/50
+                  bg-black/65
                   backdrop-blur-md
                   border
                   border-white/10
@@ -747,72 +1073,7 @@ export default function MechanicSearch() {
             </div>
 
 
-            {/* USER LOCATION */}
-
-            {location && (
-              <div
-                className="
-                  absolute
-                  left-1/2
-                  top-1/2
-                  -translate-x-1/2
-                  -translate-y-1/2
-                "
-              >
-
-                <div className="relative">
-
-                  <div
-                    className="
-                      absolute
-                      inset-0
-                      w-16
-                      h-16
-                      -translate-x-1/2
-                      -translate-y-1/2
-                      rounded-full
-                      bg-blue-500/20
-                      animate-ping
-                    "
-                  />
-
-                  <div
-                    className="
-                      relative
-                      w-10
-                      h-10
-                      rounded-full
-                      bg-blue-600
-                      border-4
-                      border-white
-                      shadow-xl
-                      flex
-                      items-center
-                      justify-center
-                    "
-                  >
-                    <FaMapMarkerAlt className="text-white text-sm" />
-                  </div>
-
-                </div>
-
-              </div>
-            )}
-
-
-            {/* MECHANIC MARKERS */}
-
-            {filteredMechanics
-              .slice(0, 5)
-              .map((mechanic, index) => (
-                <MapMarker
-                  key={mechanic.id}
-                  index={index}
-                />
-              ))}
-
-
-            {/* MAP INFO */}
+            {/* MAP BOTTOM INFO */}
 
             <div
               className="
@@ -820,13 +1081,15 @@ export default function MechanicSearch() {
                 bottom-4
                 left-4
                 right-4
+                z-[1000]
+                pointer-events-none
               "
             >
 
               <div
                 className="
                   rounded-xl
-                  bg-black/60
+                  bg-black/65
                   backdrop-blur-md
                   border
                   border-white/10
@@ -834,7 +1097,13 @@ export default function MechanicSearch() {
                 "
               >
 
-                <div className="flex items-center gap-3">
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-3
+                  "
+                >
 
                   <div
                     className="
@@ -851,15 +1120,27 @@ export default function MechanicSearch() {
                     <FaMapMarkerAlt />
                   </div>
 
+
                   <div>
 
-                    <p className="text-sm font-semibold">
+                    <p
+                      className="
+                        text-sm
+                        font-semibold
+                      "
+                    >
                       {location
                         ? "Your location detected"
                         : "Location required"}
                     </p>
 
-                    <p className="text-xs text-gray-400">
+
+                    <p
+                      className="
+                        text-xs
+                        text-gray-400
+                      "
+                    >
                       {location
                         ? "Showing verified online mechanics near you"
                         : "Allow location access to find nearby mechanics"}
@@ -893,17 +1174,30 @@ export default function MechanicSearch() {
 
               <div>
 
-                <h2 className="text-xl font-bold">
+                <h2
+                  className="
+                    text-xl
+                    font-bold
+                  "
+                >
                   Available Mechanics
                 </h2>
 
-                <p className="text-xs text-gray-500 mt-1">
+
+                <p
+                  className="
+                    text-xs
+                    text-gray-500
+                    mt-1
+                  "
+                >
                   {loading
                     ? "Finding nearby mechanics..."
                     : `${filteredMechanics.length} mechanics found`}
                 </p>
 
               </div>
+
 
               <div
                 className="
@@ -915,8 +1209,15 @@ export default function MechanicSearch() {
                   text-gray-500
                 "
               >
-                <FaClock className="text-emerald-400" />
+
+                <FaClock
+                  className="
+                    text-emerald-400
+                  "
+                />
+
                 Live availability
+
               </div>
 
             </div>
@@ -946,13 +1247,25 @@ export default function MechanicSearch() {
                   "
                 />
 
-                <h3 className="font-semibold">
+
+                <h3
+                  className="
+                    font-semibold
+                  "
+                >
                   Finding nearby mechanics
                 </h3>
 
-                <p className="text-sm text-gray-500 mt-2">
-                  Checking verified mechanics around
-                  your location...
+
+                <p
+                  className="
+                    text-sm
+                    text-gray-500
+                    mt-2
+                  "
+                >
+                  Checking verified mechanics
+                  around your location...
                 </p>
 
               </div>
@@ -984,18 +1297,33 @@ export default function MechanicSearch() {
                     "
                   />
 
-                  <h3 className="font-semibold">
+
+                  <h3
+                    className="
+                      font-semibold
+                    "
+                  >
                     No nearby mechanics found
                   </h3>
 
-                  <p className="text-sm text-gray-500 mt-2">
-                    Try again from another location
-                    or increase your search area.
+
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      mt-2
+                    "
+                  >
+                    Try searching again from
+                    your current location.
                   </p>
+
 
                   <button
                     type="button"
-                    onClick={getUserLocation}
+                    onClick={
+                      getUserLocation
+                    }
                     className="
                       mt-5
                       px-5
@@ -1020,13 +1348,21 @@ export default function MechanicSearch() {
             {!loading &&
               filteredMechanics.length >
                 0 && (
-                <div className="space-y-4">
+                <div
+                  className="
+                    space-y-4
+                  "
+                >
 
                   {filteredMechanics.map(
                     (mechanic) => (
                       <MechanicCard
-                        key={mechanic.id}
-                        mechanic={mechanic}
+                        key={
+                          mechanic.id
+                        }
+                        mechanic={
+                          mechanic
+                        }
                         onCall={
                           handleCall
                         }
@@ -1046,14 +1382,66 @@ export default function MechanicSearch() {
 
       </div>
 
+
+      {/* =================================================
+          EXTRA STYLES
+      ================================================= */}
+
+      <style>{`
+
+        .leaflet-container {
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+          background:#0f172a;
+        }
+
+        .leaflet-popup-content-wrapper,
+        .leaflet-popup-tip {
+          background:#ffffff;
+        }
+
+        .leaflet-popup-content {
+          margin:12px 14px;
+        }
+
+        .leaflet-control-zoom {
+          border:none !important;
+          box-shadow:
+            0 5px 15px
+            rgba(0,0,0,.25) !important;
+        }
+
+        .leaflet-control-zoom a {
+          background:#0f172a !important;
+          color:#ffffff !important;
+          border-color:#334155 !important;
+        }
+
+        .leaflet-control-zoom a:hover {
+          background:#1e293b !important;
+        }
+
+        .leaflet-control-attribution {
+          background:rgba(2,6,23,.75) !important;
+          color:#94a3b8 !important;
+        }
+
+        .leaflet-control-attribution a {
+          color:#93c5fd !important;
+        }
+
+      `}</style>
+
     </div>
   );
 }
 
 
-/* =========================================================
-   MECHANIC CARD
-========================================================= */
+// =====================================================
+// MECHANIC CARD
+// =====================================================
 
 function MechanicCard({
   mechanic,
@@ -1079,7 +1467,13 @@ function MechanicCard({
 
       {/* TOP */}
 
-      <div className="flex items-start gap-4">
+      <div
+        className="
+          flex
+          items-start
+          gap-4
+        "
+      >
 
         <div
           className="
@@ -1096,8 +1490,10 @@ function MechanicCard({
             text-xl
             shadow-lg
             shadow-blue-600/20
+            overflow-hidden
           "
         >
+
           {mechanic.profilePhoto ? (
             <img
               src={
@@ -1109,17 +1505,22 @@ function MechanicCard({
               className="
                 w-full
                 h-full
-                rounded-xl
                 object-cover
               "
             />
           ) : (
             <FaTools />
           )}
+
         </div>
 
 
-        <div className="min-w-0 flex-1">
+        <div
+          className="
+            min-w-0
+            flex-1
+          "
+        >
 
           <div
             className="
@@ -1132,7 +1533,13 @@ function MechanicCard({
 
             <div>
 
-              <div className="flex items-center gap-2">
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-2
+                "
+              >
 
                 <h3
                   className="
@@ -1143,6 +1550,7 @@ function MechanicCard({
                 >
                   {mechanic.name}
                 </h3>
+
 
                 {mechanic.verified && (
                   <FaCheckCircle
@@ -1157,7 +1565,14 @@ function MechanicCard({
 
               </div>
 
-              <p className="text-xs text-gray-500 mt-1">
+
+              <p
+                className="
+                  text-xs
+                  text-gray-500
+                  mt-1
+                "
+              >
                 {mechanic.mechanicName}
               </p>
 
@@ -1184,7 +1599,14 @@ function MechanicCard({
 
       {/* STATUS */}
 
-      <div className="flex items-center gap-2 mt-4">
+      <div
+        className="
+          flex
+          items-center
+          gap-2
+          mt-4
+        "
+      >
 
         <span
           className="
@@ -1210,7 +1632,14 @@ function MechanicCard({
 
       {/* ADDRESS */}
 
-      <div className="flex items-start gap-2 mt-3">
+      <div
+        className="
+          flex
+          items-start
+          gap-2
+          mt-3
+        "
+      >
 
         <FaMapMarkerAlt
           className="
@@ -1220,16 +1649,28 @@ function MechanicCard({
           "
         />
 
-        <p className="text-xs text-gray-400">
+        <p
+          className="
+            text-xs
+            text-gray-400
+          "
+        >
           {mechanic.address}
         </p>
 
       </div>
 
 
-      {/* SERVICE */}
+      {/* TAGS */}
 
-      <div className="flex flex-wrap gap-2 mt-4">
+      <div
+        className="
+          flex
+          flex-wrap
+          gap-2
+          mt-4
+        "
+      >
 
         <span
           className="
@@ -1246,6 +1687,7 @@ function MechanicCard({
           Roadside Assistance
         </span>
 
+
         <span
           className="
             px-2.5
@@ -1258,7 +1700,7 @@ function MechanicCard({
             text-emerald-400
           "
         >
-          Online
+          Verified
         </span>
 
       </div>
@@ -1266,11 +1708,20 @@ function MechanicCard({
 
       {/* ACTIONS */}
 
-      <div className="grid grid-cols-2 gap-3 mt-5">
+      <div
+        className="
+          grid
+          grid-cols-2
+          gap-3
+          mt-5
+        "
+      >
 
         <button
           type="button"
-          disabled={!mechanic.phone}
+          disabled={
+            !mechanic.phone
+          }
           onClick={() =>
             onCall(
               mechanic.phone
@@ -1296,14 +1747,19 @@ function MechanicCard({
             transition
           "
         >
+
           <FaPhone />
+
           Call
+
         </button>
 
 
         <button
           type="button"
-          onClick={onGetHelp}
+          onClick={
+            onGetHelp
+          }
           className="
             flex
             items-center
@@ -1322,64 +1778,13 @@ function MechanicCard({
             transition
           "
         >
+
           <FaDirections />
+
           Get Help
+
         </button>
 
-      </div>
-
-    </div>
-  );
-}
-
-
-/* =========================================================
-   MAP MARKER
-========================================================= */
-
-function MapMarker({
-  index = 0,
-}) {
-  const positions = [
-    "top-[28%] left-[28%]",
-    "top-[62%] left-[68%]",
-    "top-[35%] right-[20%]",
-    "top-[72%] left-[25%]",
-    "top-[20%] right-[38%]",
-  ];
-
-  const colors = [
-    "bg-emerald-500",
-    "bg-blue-500",
-    "bg-purple-500",
-    "bg-cyan-500",
-    "bg-indigo-500",
-  ];
-
-  return (
-    <div
-      className={`
-        absolute
-        ${positions[index % positions.length]}
-      `}
-    >
-
-      <div
-        className={`
-          relative
-          w-9
-          h-9
-          ${colors[index % colors.length]}
-          rounded-full
-          border-4
-          border-white
-          shadow-xl
-          flex
-          items-center
-          justify-center
-        `}
-      >
-        <FaTools className="text-white text-xs" />
       </div>
 
     </div>

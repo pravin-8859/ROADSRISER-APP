@@ -59,6 +59,27 @@ export const createRequestApi = async (data) => {
   return res.data;
 };
 
+// ================= NEARBY MECHANICS =================
+
+export const getNearbyMechanicsApi = async ({
+  lat,
+  lng,
+  radius = 10,
+}) => {
+  const res = await API.get(
+    "/users/mechanics/nearby",
+    {
+      params: {
+        lat,
+        lng,
+        radius,
+      },
+    }
+  );
+
+  return res.data;
+};
+
 // ================= NOTIFICATIONS =================
 
 export const getNotificationsApi = async () => {
