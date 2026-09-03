@@ -15,15 +15,13 @@ const processQueue = (
   error,
   token = null
 ) => {
-  failedQueue.forEach(
-    (promise) => {
-      if (error) {
-        promise.reject(error);
-      } else {
-        promise.resolve(token);
-      }
+  failedQueue.forEach((promise) => {
+    if (error) {
+      promise.reject(error);
+    } else {
+      promise.resolve(token);
     }
-  );
+  });
 
   failedQueue = [];
 };
@@ -35,12 +33,8 @@ const processQueue = (
 API.interceptors.request.use(
   (config) => {
     const token =
-      localStorage.getItem(
-        "accessToken"
-      ) ||
-      localStorage.getItem(
-        "token"
-      );
+      localStorage.getItem("accessToken") ||
+      localStorage.getItem("token");
 
     if (token) {
       config.headers.Authorization =
@@ -100,9 +94,7 @@ API.interceptors.response.use(
         originalRequest.headers.Authorization =
           `Bearer ${newToken}`;
 
-        return API(
-          originalRequest
-        );
+        return API(originalRequest);
       });
     }
 
@@ -136,9 +128,7 @@ API.interceptors.response.use(
       originalRequest.headers.Authorization =
         `Bearer ${newToken}`;
 
-      return API(
-        originalRequest
-      );
+      return API(originalRequest);
     } catch (refreshError) {
       processQueue(
         refreshError,
@@ -253,10 +243,18 @@ export const getMechanicProfile =
   () =>
     API.get("/mechanics/me");
 
+  export const updateMechanicProfile =
+  (data) =>
+    API.put(
+      "/mechanics/me",
+      data
+    );
+
 // =====================================================
 // LOCATION
 // =====================================================
 
+// Permanent garage location
 export const updateGarageLocation = (
   coordinates
 ) =>
@@ -267,6 +265,7 @@ export const updateGarageLocation = (
     }
   );
 
+// Current / live mechanic location
 export const updateCurrentLocation = (
   coordinates
 ) =>
@@ -290,19 +289,21 @@ export const updateMechanicAvailability =
       }
     );
 
-
 // =====================================================
 // MECHANIC PASSWORD RESET
 // =====================================================
 
-export const sendMechanicResetOtp = (email) =>
+export const sendMechanicResetOtp = (
+  email
+) =>
   API.post(
     "/mechanics/password/send-otp",
     {
-      email: email.trim().toLowerCase(),
+      email: email
+        .trim()
+        .toLowerCase(),
     }
   );
-
 
 export const verifyMechanicResetOtp = (
   email,
@@ -311,11 +312,13 @@ export const verifyMechanicResetOtp = (
   API.post(
     "/mechanics/password/verify-otp",
     {
-      email: email.trim().toLowerCase(),
+      email: email
+        .trim()
+        .toLowerCase(),
+
       otp: otp.trim(),
     }
   );
-
 
 export const resetMechanicPassword = (
   email,
@@ -325,13 +328,15 @@ export const resetMechanicPassword = (
   API.post(
     "/mechanics/password/reset-password",
     {
-      email: email.trim().toLowerCase(),
+      email: email
+        .trim()
+        .toLowerCase(),
+
       otp: otp.trim(),
+
       password,
     }
   );
-
-
   // =====================================================
 // NEARBY MECHANICS
 // =====================================================
@@ -341,7 +346,7 @@ export const getNearbyMechanics = ({
   longitude,
   radius = 50,
 }) =>
-  API.get("/mechanics/nearby", {
+  API.get("/users/mechanics/nearby", {
     params: {
       lat: latitude,
       lng: longitude,
@@ -349,23 +354,26 @@ export const getNearbyMechanics = ({
     },
   });
 
-
 // =====================================================
 // REQUESTS
 // =====================================================
 
+// Get pending + assigned requests
 export const getMechanicRequests =
   () =>
     API.get(
       "/mechanics/requests"
     );
 
+// Accept request
 export const acceptMechanicRequest =
   (id) =>
     API.put(
       `/mechanics/requests/${id}/accept`
     );
 
+
+// Update request status
 export const updateMechanicRequestStatus =
   (id, status) =>
     API.put(
@@ -374,5 +382,13 @@ export const updateMechanicRequestStatus =
         status,
       }
     );
+
+// Cancel assigned request
+export const cancelMechanicRequest =
+  (id) =>
+    API.put(
+      `/mechanics/requests/${id}/cancel`
+    );
+
 
 export default API;

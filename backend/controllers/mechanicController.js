@@ -603,6 +603,145 @@ export const getMechanicProfile =
     }
   };
 
+  // =========================================================
+// UPDATE MECHANIC PROFILE
+// =========================================================
+
+export const updateMechanicProfile = async (
+  req,
+  res
+) => {
+  try {
+    const mechanicId = req.mechanic?.id;
+
+    if (!mechanicId) {
+      return res.status(401).json({
+        message:
+          "Mechanic authentication required",
+      });
+    }
+
+    const {
+      name,
+      phone,
+      gst,
+      garageName,
+      address,
+      profilePhoto,
+    } = req.body;
+
+    const mechanic =
+      await Mechanic.findById(mechanicId);
+
+    if (!mechanic) {
+      return res.status(404).json({
+        message: "Mechanic not found",
+      });
+    }
+
+    // =====================================================
+    // EMAIL IS INTENTIONALLY NOT UPDATED
+    // =====================================================
+    // Email is permanently linked to the mechanic account.
+    // req.body.email is ignored.
+
+    if (name !== undefined) {
+      mechanic.name =
+        String(name).trim();
+    }
+
+    if (phone !== undefined) {
+      const normalizedPhone =
+        normalizePhone(phone);
+
+      if (
+        normalizedPhone &&
+        !/^\d{10}$/.test(
+          normalizedPhone
+        )
+      ) {
+        return res.status(400).json({
+          message:
+            "Phone number must contain 10 digits",
+        });
+      }
+
+      if (normalizedPhone) {
+        const existingPhone =
+          await Mechanic.findOne({
+            phone: normalizedPhone,
+            _id: {
+              $ne: mechanicId,
+            },
+          });
+
+        if (existingPhone) {
+          return res.status(400).json({
+            message:
+              "Phone already registered",
+          });
+        }
+
+        mechanic.phone =
+          normalizedPhone;
+      }
+    }
+
+    if (gst !== undefined) {
+      mechanic.gst =
+        String(gst).trim().toUpperCase();
+    }
+
+    if (garageName !== undefined) {
+      mechanic.garageName =
+        String(garageName).trim();
+    }
+
+    if (address !== undefined) {
+      mechanic.address =
+        String(address).trim();
+    }
+
+    if (profilePhoto !== undefined) {
+      mechanic.profilePhoto =
+        String(profilePhoto).trim();
+    }
+
+    await mechanic.save();
+
+    const updatedMechanic =
+      await Mechanic.findById(
+        mechanicId
+      ).select(
+        "-password -refreshToken -otpHash -otpExpire -resetOtpHash -resetOtpExpire"
+      );
+
+    return res.json({
+      success: true,
+      message:
+        "Profile updated successfully",
+      mechanic: updatedMechanic,
+    });
+  } catch (err) {
+    console.error(
+      "updateMechanicProfile error:",
+      err
+    );
+
+    if (err.code === 11000) {
+      return res.status(400).json({
+        message:
+          "Phone number already registered",
+      });
+    }
+
+    return res.status(500).json({
+      message:
+        "Failed to update mechanic profile",
+    });
+  }
+};
+
 // =========================================================
 // UPDATE GARAGE LOCATION
 // =========================================================
@@ -758,11 +897,17 @@ export const updateMechanicAvailability =
   async (req, res) => {
     try {
       const mechanicId =
-        req.mechanic.id;
+        req.mechanic?.id;
 
-      const {
-        isOnline,
-      } = req.body;
+      if (!mechanicId) {
+        return res.status(401).json({
+          message:
+            "Mechanic authentication required",
+        });
+      }
+
+      const { isOnline } =
+        req.body;
 
       if (
         typeof isOnline !== "boolean"
@@ -773,34 +918,68 @@ export const updateMechanicAvailability =
         });
       }
 
-      const mech =
-        await Mechanic.findByIdAndUpdate(
-          mechanicId,
-          {
-            $set: {
-              isOnline,
-            },
-          },
-          {
-            new: true,
-          }
-        ).select(
-          "name isOnline currentLocation lastLocationUpdate"
+      const mechanic =
+        await Mechanic.findById(
+          mechanicId
         );
 
-      if (!mech) {
+      if (!mechanic) {
         return res.status(404).json({
           message:
             "Mechanic not found",
         });
       }
 
+      // ===================================================
+      // ONLINE VALIDATION
+      // ===================================================
+
+      if (isOnline) {
+        const hasGarageLocation =
+          isValidCoordinates(
+            mechanic.garageLocation
+              ?.coordinates
+          );
+
+        if (!hasGarageLocation) {
+          return res.status(400).json({
+            message:
+              "Please save your exact garage location before going online",
+          });
+        }
+      }
+
+      mechanic.isOnline =
+        isOnline;
+
+      // Going offline should not leave
+      // an old active request locked forever.
+      // Active request itself is handled by
+      // requestController when completed/cancelled.
+      await mechanic.save();
+
       return res.json({
         success: true,
+
         message: isOnline
           ? "You are now online"
           : "You are now offline",
-        mechanic: mech,
+
+        mechanic: {
+          id: mechanic._id,
+          name: mechanic.name || "",
+          isOnline:
+            mechanic.isOnline,
+          garageLocation:
+            mechanic.garageLocation ||
+            null,
+          currentLocation:
+            mechanic.currentLocation ||
+            null,
+          lastLocationUpdate:
+            mechanic.lastLocationUpdate ||
+            null,
+        },
       });
     } catch (err) {
       console.error(
@@ -958,22 +1137,33 @@ export const getNearbyMechanics = async (req, res) => {
 
       return earthRadiusKm * c;
     };
+    const LIVE_LOCATION_MAX_AGE =
+  2 * 60 * 1000;
+
+const liveLocationLimit =
+  Date.now() -
+  LIVE_LOCATION_MAX_AGE;
 
     const nearbyMechanics = mechanics
       .map((mechanic) => {
         let coordinates = null;
+// Prefer LIVE location only when it is fresh
+const hasFreshLiveLocation =
+  Array.isArray(
+    mechanic.currentLocation?.coordinates
+  ) &&
+  mechanic.currentLocation.coordinates.length ===
+    2 &&
+  mechanic.lastLocationUpdate &&
+  new Date(
+    mechanic.lastLocationUpdate
+  ).getTime() >=
+    liveLocationLimit;
 
-        // Prefer live/current location
-        if (
-          Array.isArray(
-            mechanic.currentLocation?.coordinates
-          ) &&
-          mechanic.currentLocation.coordinates.length ===
-            2
-        ) {
-          coordinates =
-            mechanic.currentLocation.coordinates;
-        }
+if (hasFreshLiveLocation) {
+  coordinates =
+    mechanic.currentLocation.coordinates;
+}
 
         // Otherwise use permanent garage location
         if (

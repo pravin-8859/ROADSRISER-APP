@@ -69,7 +69,10 @@ const mechanicSchema = new mongoose.Schema(
 
         validate: {
           validator: function (value) {
-            if (value === undefined || value === null) {
+            if (
+              value === undefined ||
+              value === null
+            ) {
               return true;
             }
 
@@ -106,7 +109,10 @@ const mechanicSchema = new mongoose.Schema(
 
         validate: {
           validator: function (value) {
-            if (value === undefined || value === null) {
+            if (
+              value === undefined ||
+              value === null
+            ) {
               return true;
             }
 
@@ -143,6 +149,17 @@ const mechanicSchema = new mongoose.Schema(
     },
 
     // =====================================================
+    // ACTIVE REQUEST
+    // =====================================================
+
+    activeRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Request",
+      default: null,
+      index: true,
+    },
+
+    // =====================================================
     // VERIFICATION
     // =====================================================
 
@@ -151,7 +168,10 @@ const mechanicSchema = new mongoose.Schema(
       default: false,
     },
 
-    // Signup OTP
+    // =====================================================
+    // SIGNUP OTP
+    // =====================================================
+
     otpHash: {
       type: String,
       default: null,
@@ -190,7 +210,6 @@ const mechanicSchema = new mongoose.Schema(
   }
 );
 
-
 // =====================================================
 // EMAIL INDEX
 // =====================================================
@@ -202,7 +221,6 @@ mechanicSchema.index(
     sparse: true,
   }
 );
-
 
 // =====================================================
 // GEO-SPATIAL INDEXES
@@ -216,9 +234,8 @@ mechanicSchema.index({
   currentLocation: "2dsphere",
 });
 
-
 // =====================================================
-// ONLINE + LOCATION INDEX
+// ONLINE + CURRENT LOCATION INDEX
 // =====================================================
 
 mechanicSchema.index({
@@ -226,46 +243,52 @@ mechanicSchema.index({
   currentLocation: "2dsphere",
 });
 
-
 // =====================================================
 // PASSWORD HASHING
 // =====================================================
 
-mechanicSchema.pre("save", async function (next) {
-  try {
-    if (!this.isModified("password") || !this.password) {
-      return next();
+mechanicSchema.pre(
+  "save",
+  async function (next) {
+    try {
+      if (
+        !this.isModified("password") ||
+        !this.password
+      ) {
+        return next();
+      }
+
+      this.password =
+        await bcrypt.hash(
+          this.password,
+          10
+        );
+
+      next();
+    } catch (err) {
+      next(err);
     }
-
-    this.password = await bcrypt.hash(
-      this.password,
-      10
-    );
-
-    next();
-  } catch (err) {
-    next(err);
   }
-});
-
+);
 
 // =====================================================
 // PASSWORD COMPARISON
 // =====================================================
 
-mechanicSchema.methods.matchPassword = async function (
-  enteredPassword
-) {
-  if (!this.password || !enteredPassword) {
-    return false;
-  }
+mechanicSchema.methods.matchPassword =
+  async function (enteredPassword) {
+    if (
+      !this.password ||
+      !enteredPassword
+    ) {
+      return false;
+    }
 
-  return bcrypt.compare(
-    enteredPassword,
-    this.password
-  );
-};
-
+    return bcrypt.compare(
+      enteredPassword,
+      this.password
+    );
+  };
 
 export default mongoose.model(
   "Mechanic",

@@ -7,15 +7,16 @@ import {
   refreshMechanicToken,
   logout,
   getMechanicProfile,
+  updateMechanicProfile,
   updateGarageLocation,
   updateCurrentLocation,
   updateMechanicAvailability,
-  getNearbyMechanics,
 } from "../controllers/mechanicController.js";
 
 import {
   getMechanicRequests,
   acceptRequest,
+  cancelMechanicRequest,
   updateRequestStatus,
 } from "../controllers/requestController.js";
 
@@ -23,28 +24,38 @@ import { verifyMechanic } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/* ========================= AUTH ========================= */
-
-router.post("/send-otp", sendOtp);
-
-router.post("/register", mechanicSignup);
-
-router.post("/login", mechanicLogin);
-
-router.post("/refresh", refreshMechanicToken);
-
-router.post("/logout", logout);
-
 // =====================================================
-// NEARBY MECHANICS
+// AUTH
 // =====================================================
 
-router.get(
-  "/nearby",
-  getNearbyMechanics
+router.post(
+  "/send-otp",
+  sendOtp
 );
 
-/* ========================= PROFILE ========================= */
+router.post(
+  "/register",
+  mechanicSignup
+);
+
+router.post(
+  "/login",
+  mechanicLogin
+);
+
+router.post(
+  "/refresh",
+  refreshMechanicToken
+);
+
+router.post(
+  "/logout",
+  logout
+);
+
+// =====================================================
+// PROFILE
+// =====================================================
 
 router.get(
   "/me",
@@ -52,7 +63,14 @@ router.get(
   getMechanicProfile
 );
 
-/* ========================= LOCATION ========================= */
+router.put(
+  "/me",
+  verifyMechanic,
+  updateMechanicProfile
+);
+// =====================================================
+// LOCATION
+// =====================================================
 
 // Permanent garage/shop location
 router.put(
@@ -75,7 +93,9 @@ router.put(
   updateMechanicAvailability
 );
 
-/* ========================= REQUESTS ========================= */
+// =====================================================
+// REQUESTS
+// =====================================================
 
 // Get pending + assigned requests
 router.get(
@@ -84,11 +104,18 @@ router.get(
   getMechanicRequests
 );
 
-// Accept pending request
+// Accept request
 router.put(
   "/requests/:id/accept",
   verifyMechanic,
   acceptRequest
+);
+
+// Cancel assigned request
+router.put(
+  "/requests/:id/cancel",
+  verifyMechanic,
+  cancelMechanicRequest
 );
 
 // Update request status

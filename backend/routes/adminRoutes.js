@@ -12,6 +12,7 @@ import {
   getMechanicById,
   getRequests,
   getRequestById,
+  getCancellationHistory,
 } from "../controllers/adminController.js";
 
 import { verifyAdmin } from "../middleware/adminAuth.js";
@@ -83,6 +84,16 @@ router.get(
 // =====================================================
 // REQUESTS
 // =====================================================
+
+// =====================================================
+// CANCELLATION HISTORY
+// =====================================================
+
+router.get(
+  "/cancellations",
+  verifyAdmin,
+  getCancellationHistory
+);
 
 router.get(
   "/requests",

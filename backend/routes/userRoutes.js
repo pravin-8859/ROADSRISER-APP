@@ -21,6 +21,7 @@ import {
   createRequest,
   getActiveRequest,
   getHistory,
+  cancelUserRequest
 } from "../controllers/requestController.js";
 import {
   getNearbyMechanics,
@@ -162,6 +163,11 @@ router.get(
   "/requests/history",
   protect,
   getHistory
+);
+router.put(
+  "/:id/cancel",
+  protect,
+  cancelUserRequest
 );
 
 

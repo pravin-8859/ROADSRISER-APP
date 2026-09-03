@@ -26,7 +26,10 @@ import {
   FaRoute,
 } from "react-icons/fa";
 
-import { getActiveRequestApi } from "../../api/userApi";
+import {
+  getActiveRequestApi,
+  cancelUserRequestApi,
+} from "../../api/userApi";
 
 /* =========================================================
    LEAFLET ICONS
@@ -410,6 +413,34 @@ export default function RequestActive() {
     }
   };
 
+  const handleCancelRequest = async () => {
+  if (!request?._id) return;
+
+  const confirmed = window.confirm(
+    "Are you sure you want to cancel this roadside assistance request?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await cancelUserRequestApi(request._id);
+
+    setRequest(null);
+    setError("");
+  } catch (err) {
+    console.error("Cancel request error:", err);
+
+    setError(
+      err?.response?.data?.message ||
+        "Request could not be cancelled."
+    );
+
+    // Backend ne request ko kisi aur mechanic ko reassign
+    // kar diya ho to latest request dobara load karo.
+    await loadActiveRequest(false);
+  }
+};
+
   /* =======================================================
      INITIAL LOAD + 5 SEC POLLING
   ======================================================= */
@@ -636,23 +667,30 @@ export default function RequestActive() {
             </p>
           </div>
 
-          <span
-            className={`inline-flex items-center w-fit px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(
-              request.status
-            )}`}
-          >
-            {request.status ===
-              "enroute" && (
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
-            )}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+  <span
+    className={`inline-flex items-center w-fit px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(
+      request.status
+    )}`}
+  >
+    {request.status === "enroute" && (
+      <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
+    )}
 
-            {request.status
-              ?.charAt(0)
-              .toUpperCase() +
-              request.status?.slice(
-                1
-              )}
-          </span>
+    {request.status?.charAt(0).toUpperCase() +
+      request.status?.slice(1)}
+  </span>
+
+  {request.status === "pending" && (
+    <button
+      type="button"
+      onClick={handleCancelRequest}
+      className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition"
+    >
+      Cancel Request
+    </button>
+  )}
+</div>
 
         </div>
       </div>

@@ -30,6 +30,7 @@ import {
   getMechanicRequests,
   acceptMechanicRequest,
   updateMechanicRequestStatus,
+  cancelMechanicRequest,
   logout,
   getMechanicProfile,
   updateGarageLocation,
@@ -56,9 +57,7 @@ export default function DashboardMechanic() {
   const [requests, setRequests] = useState([]);
   const [assignedJobs, setAssignedJobs] = useState([]);
 
-  const [available, setAvailable] = useState(
-    localStorage.getItem("mechanicAvailable") !== "false"
-  );
+  const [available, setAvailable] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState("");
@@ -69,8 +68,32 @@ export default function DashboardMechanic() {
   const [locationStatus, setLocationStatus] = useState("Not set");
   const watchIdRef = useRef(null);
   const lastLocationSentRef = useRef(0);
+  const mechanicIdRef = useRef("");
 
-  const [profile, setProfile] = useState(() => {
+  const [profile, setProfile] = useState({
+    name: "",
+    garage: "",
+    phone: "",
+    email: "",
+    gst: "",
+    address: "",
+    photo: "",
+  });
+
+  const [inventory, setInventory] = useState([]);
+  const [earnings, setEarnings] = useState([]);
+
+  const getMechanicStorageKey = (key) => {
+    const id = mechanicIdRef.current;
+    return id ? `${key}:${id}` : null;
+  };
+
+  /* Legacy global localStorage state intentionally removed.
+   * Mechanic data must never be shared between accounts.
+   */
+
+  /* OLD GLOBAL PROFILE/INVENTORY/EARNINGS STATE
+
     try {
       return JSON.parse(
         localStorage.getItem("mechanicProfile") ||
@@ -110,6 +133,8 @@ export default function DashboardMechanic() {
     }
   });
 
+  */
+
   const [reviews] = useState([
     {
       id: 1,
@@ -139,6 +164,34 @@ export default function DashboardMechanic() {
 
       if (!mech) return;
 
+      const mechanicStorageId = String(
+        mech._id || mech.id || mech.email || ""
+      );
+
+      mechanicIdRef.current = mechanicStorageId;
+
+      const profileKey = getMechanicStorageKey("mechanicProfile");
+      const inventoryKey = getMechanicStorageKey("mechanicInventory");
+      const earningsKey = getMechanicStorageKey("mechanicEarnings");
+
+      let savedProfile = null;
+      let savedInventory = null;
+      let savedEarnings = null;
+
+      try {
+        savedProfile = profileKey
+          ? JSON.parse(localStorage.getItem(profileKey) || "null")
+          : null;
+        savedInventory = inventoryKey
+          ? JSON.parse(localStorage.getItem(inventoryKey) || "null")
+          : null;
+        savedEarnings = earningsKey
+          ? JSON.parse(localStorage.getItem(earningsKey) || "null")
+          : null;
+      } catch (storageError) {
+        console.warn("Mechanic local storage read failed:", storageError);
+      }
+
       const nextProfile = {
         name: mech.name || "",
         garage: mech.garageName || "",
@@ -146,15 +199,38 @@ export default function DashboardMechanic() {
         email: mech.email || "",
         gst: mech.gst || "",
         address: mech.address || "",
-        photo: mech.profilePhoto || profile.photo || "",
+        photo: mech.profilePhoto || savedProfile?.photo || "",
       };
 
       setProfile(nextProfile);
-      localStorage.setItem("mechanicProfile", JSON.stringify(nextProfile));
+
+      if (profileKey) {
+        localStorage.setItem(profileKey, JSON.stringify(nextProfile));
+      }
+
+      const defaultInventory = [
+        { id: 1, name: "Tyre", sku: "TYR-01", qty: 5, price: 1200 },
+        { id: 2, name: "Car Battery", sku: "BAT-01", qty: 2, price: 3500 },
+        { id: 3, name: "Brake Pad", sku: "BRK-01", qty: 1, price: 400 },
+      ];
+
+      setInventory(Array.isArray(savedInventory) ? savedInventory : defaultInventory);
+      setEarnings(Array.isArray(savedEarnings) ? savedEarnings : []);
+
+      if (inventoryKey && !savedInventory) {
+        localStorage.setItem(inventoryKey, JSON.stringify(defaultInventory));
+      }
+
+      if (earningsKey && !savedEarnings) {
+        localStorage.setItem(earningsKey, "[]");
+      }
 
       setGarageLocation(mech.garageLocation || null);
       setAvailable(Boolean(mech.isOnline));
-      localStorage.setItem("mechanicAvailable", String(Boolean(mech.isOnline)));
+      localStorage.setItem(
+        getMechanicStorageKey("mechanicAvailable") || "mechanicAvailable",
+        String(Boolean(mech.isOnline))
+      );
 
       if (mech.garageLocation?.coordinates?.length === 2) {
         setLocationStatus("Garage location saved");
@@ -421,7 +497,7 @@ const setAvailability = async (next) => {
     setAvailable(next);
 
     localStorage.setItem(
-      "mechanicAvailable",
+      getMechanicStorageKey("mechanicAvailable") || "mechanicAvailable",
       String(next)
     );
 
@@ -560,6 +636,47 @@ const setAvailability = async (next) => {
     }
   };
 
+  /* ============================= CANCEL REQUEST ============================= */
+
+const cancelRequest = async (id) => {
+  if (!id) return;
+
+  const confirmed = window.confirm(
+    "Decline this request? It will be removed from your requests."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setActionLoading(`cancel-${id}`);
+
+    await cancelMechanicRequest(id);
+
+    setRequests((prev) =>
+      prev.filter(
+        (request) =>
+          request.id !== id &&
+          request._id !== id
+      )
+    );
+
+    notify(
+      "Request declined successfully."
+    );
+
+    await loadRequests();
+  } catch (error) {
+    notify(
+      error?.response?.data?.message ||
+        "Request could not be declined.",
+      "error"
+    );
+
+    await loadRequests();
+  } finally {
+    setActionLoading("");
+  }
+};
   /* ============================= UPDATE JOB ============================= */
 
   const updateJobStatus = async (jobId) => {
@@ -622,10 +739,10 @@ const setAvailability = async (next) => {
 
       setEarnings(updatedEarnings);
 
-      localStorage.setItem(
-        "mechanicEarnings",
-        JSON.stringify(updatedEarnings)
-      );
+      const earningsKey = getMechanicStorageKey("mechanicEarnings");
+      if (earningsKey) {
+        localStorage.setItem(earningsKey, JSON.stringify(updatedEarnings));
+      }
 
       setAssignedJobs((prev) =>
         prev.filter((item) => item.id !== job.id)
@@ -656,10 +773,10 @@ const setAvailability = async (next) => {
   const saveProfile = (data) => {
     setProfile(data);
 
-    localStorage.setItem(
-      "mechanicProfile",
-      JSON.stringify(data)
-    );
+    const profileKey = getMechanicStorageKey("mechanicProfile");
+    if (profileKey) {
+      localStorage.setItem(profileKey, JSON.stringify(data));
+    }
 
     notify("Profile updated successfully.");
   };
@@ -693,10 +810,10 @@ const setAvailability = async (next) => {
 
       setProfile(updatedProfile);
 
-      localStorage.setItem(
-        "mechanicProfile",
-        JSON.stringify(updatedProfile)
-      );
+      const profileKey = getMechanicStorageKey("mechanicProfile");
+      if (profileKey) {
+        localStorage.setItem(profileKey, JSON.stringify(updatedProfile));
+      }
 
       notify("Profile photo updated.");
     };
@@ -712,10 +829,10 @@ const setAvailability = async (next) => {
 
     setProfile(updatedProfile);
 
-    localStorage.setItem(
-      "mechanicProfile",
-      JSON.stringify(updatedProfile)
-    );
+    const profileKey = getMechanicStorageKey("mechanicProfile");
+    if (profileKey) {
+      localStorage.setItem(profileKey, JSON.stringify(updatedProfile));
+    }
 
     notify("Profile photo removed.");
   };
@@ -725,10 +842,10 @@ const setAvailability = async (next) => {
   const saveInventory = (items) => {
     setInventory(items);
 
-    localStorage.setItem(
-      "mechanicInventory",
-      JSON.stringify(items)
-    );
+    const inventoryKey = getMechanicStorageKey("mechanicInventory");
+    if (inventoryKey) {
+      localStorage.setItem(inventoryKey, JSON.stringify(items));
+    }
   };
 
   const addInventory = (item) => {
@@ -1264,6 +1381,7 @@ const setAvailability = async (next) => {
               loading={loading}
               actionLoading={actionLoading}
               onAccept={acceptRequest}
+              onCancel={cancelRequest}
               onRefresh={loadRequests}
             />
           )}
@@ -1584,6 +1702,7 @@ function ActiveRequestsPage({
   loading,
   actionLoading,
   onAccept,
+  onCancel,
   onRefresh,
 }) {
   return (
@@ -1616,6 +1735,7 @@ function ActiveRequestsPage({
               key={request.id}
               request={request}
               onAccept={onAccept}
+              onCancel={onCancel}
               actionLoading={actionLoading}
             />
           ))}
@@ -1634,6 +1754,7 @@ function ActiveRequestsPage({
 function RequestCard({
   request,
   onAccept,
+  onCancel,
   actionLoading,
   compact = false,
 }) {
@@ -1710,22 +1831,43 @@ function RequestCard({
       {!compact && (
         <div className="mt-5 pt-4 border-t dark:border-gray-800">
 
-          <button
-            disabled={actionLoading === `accept-${request.id}`}
-            onClick={() => onAccept(request.id)}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium disabled:opacity-60"
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              disabled={
+                actionLoading === `accept-${request.id}` ||
+                actionLoading === `cancel-${request.id}`
+              }
+              onClick={() => onAccept(request.id)}
+              className="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium disabled:opacity-60"
+            >
+              {actionLoading === `accept-${request.id}` ? (
+                <span className="flex justify-center items-center gap-2">
+                  <FaSpinner className="animate-spin" />
+                  Accepting...
+                </span>
+              ) : (
+                "Accept Request"
+              )}
+            </button>
 
-            {actionLoading === `accept-${request.id}` ? (
-              <span className="flex justify-center items-center gap-2">
-                <FaSpinner className="animate-spin" />
-                Accepting...
-              </span>
-            ) : (
-              "Accept Request"
-            )}
-
-          </button>
+            <button
+              disabled={
+                actionLoading === `accept-${request.id}` ||
+                actionLoading === `cancel-${request.id}`
+              }
+              onClick={() => onCancel(request.id)}
+              className="py-2.5 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 font-medium disabled:opacity-60"
+            >
+              {actionLoading === `cancel-${request.id}` ? (
+                <span className="flex justify-center items-center gap-2">
+                  <FaSpinner className="animate-spin" />
+                  Cancelling...
+                </span>
+              ) : (
+                "Cancel Request"
+              )}
+            </button>
+          </div>
 
         </div>
       )}
@@ -2499,14 +2641,18 @@ function ProfilePage({
             }
           />
 
-          <Input
-            label="Email"
-            value={form.email}
-            onChange={(value) =>
-              update("email", value)
-            }
-            type="email"
-          />
+          <div>
+            <Input
+              label="Email"
+              value={form.email}
+              onChange={() => {}}
+              type="email"
+              disabled
+            />
+            <p className="text-xs text-gray-500 mt-1.5">
+              Email is linked to your mechanic account and cannot be changed.
+            </p>
+          </div>
 
           <Input
             label="GST Number"
@@ -2641,6 +2787,10 @@ function HelpPage() {
       a: "Open Active Requests and select Accept Request.",
     },
     {
+      q: "How do I cancel a request?",
+      a: "Open Active Requests and select Cancel Request. The request will be released for another mechanic.",
+    },
+    {
       q: "How do I update job status?",
       a: "Open Assigned Jobs and use On My Way or Mark Completed.",
     },
@@ -2759,6 +2909,7 @@ function Input({
   value,
   onChange,
   type = "text",
+  disabled = false,
 }) {
   return (
     <div>
@@ -2770,10 +2921,12 @@ function Input({
       <input
         type={type}
         value={value || ""}
-        onChange={(e) =>
-          onChange(e.target.value)
-        }
-        className="w-full px-4 py-3 rounded-xl border dark:border-gray-700 bg-transparent outline-none focus:ring-2 focus:ring-indigo-500"
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        readOnly={disabled}
+        className={`w-full px-4 py-3 rounded-xl border dark:border-gray-700 bg-transparent outline-none focus:ring-2 focus:ring-indigo-500 ${
+          disabled ? "opacity-70 cursor-not-allowed bg-gray-100 dark:bg-gray-800" : ""
+        }`}
       />
 
     </div>

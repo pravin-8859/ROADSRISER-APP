@@ -594,3 +594,96 @@ export const getRequestById =
       });
     }
   };
+
+// =====================================================
+// GET CANCELLATION HISTORY
+// =====================================================
+
+export const getCancellationHistory = async (req, res) => {
+  try {
+    const requests = await Request.find({
+      "cancellationHistory.0": {
+        $exists: true,
+      },
+    })
+      .populate(
+        "user",
+        "name email phone"
+      )
+      .populate(
+        "mechanic",
+        "name email phone garageName"
+      )
+      .populate(
+        "cancellationHistory.mechanic",
+        "name email phone garageName"
+      )
+      .populate(
+        "cancellationHistory.reassignedTo",
+        "name email phone garageName"
+      )
+      .sort({
+        updatedAt: -1,
+      })
+      .limit(500);
+
+    const history = [];
+
+    for (const request of requests) {
+      if (!Array.isArray(request.cancellationHistory)) {
+        continue;
+      }
+
+      for (const item of request.cancellationHistory) {
+        history.push({
+          requestId: request._id,
+
+          user: request.user,
+
+          problem:
+            request.problem ||
+            request.serviceType ||
+            "Roadside Assistance",
+
+          address: request.address || "",
+
+          status: request.status,
+
+          mechanic: item.mechanic,
+
+          cancelledAt: item.cancelledAt,
+
+          reassignedTo:
+            item.reassignedTo || null,
+
+          reassignedAt:
+            item.reassignedAt || null,
+        });
+      }
+    }
+
+    history.sort(
+      (a, b) =>
+        new Date(b.cancelledAt) -
+        new Date(a.cancelledAt)
+    );
+
+    return res.json({
+      success: true,
+
+      total: history.length,
+
+      history,
+    });
+  } catch (error) {
+    console.error(
+      "getCancellationHistory error:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        "Failed to fetch cancellation history",
+    });
+  }
+};

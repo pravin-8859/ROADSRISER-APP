@@ -94,3 +94,10 @@ export const markNotificationReadApi = async (id) => {
 
   return res.data;
 };
+export const cancelUserRequestApi = async (requestId) => {
+  const res = await API.put(
+    `/users/${requestId}/cancel`
+  );
+
+  return res.data;
+};
