@@ -33,8 +33,7 @@ const processQueue = (
 API.interceptors.request.use(
   (config) => {
     const token =
-      localStorage.getItem("accessToken") ||
-      localStorage.getItem("token");
+      localStorage.getItem("accessToken");
 
     if (token) {
       config.headers.Authorization =
@@ -147,8 +146,7 @@ API.interceptors.response.use(
         "role"
       );
 
-      window.location.href =
-        "/mechanic/login";
+      window.location.href = "/auth/mechanic/login";
 
       return Promise.reject(
         refreshError
@@ -293,6 +291,10 @@ export const updateMechanicAvailability =
 // MECHANIC PASSWORD RESET
 // =====================================================
 
+// =====================================================
+// MECHANIC PASSWORD RESET
+// =====================================================
+
 export const sendMechanicResetOtp = (
   email
 ) =>
@@ -322,7 +324,7 @@ export const verifyMechanicResetOtp = (
 
 export const resetMechanicPassword = (
   email,
-  otp,
+  resetToken,
   password
 ) =>
   API.post(
@@ -332,7 +334,7 @@ export const resetMechanicPassword = (
         .trim()
         .toLowerCase(),
 
-      otp: otp.trim(),
+      resetToken,
 
       password,
     }

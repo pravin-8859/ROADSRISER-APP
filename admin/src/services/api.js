@@ -138,8 +138,7 @@ API.interceptors.response.use(
         "admin"
       );
 
-      window.location.href =
-        "/login";
+      window.location.href = "/admin/login";
 
       return Promise.reject(
         refreshError

@@ -12,6 +12,10 @@ const mechanicSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    resetOtpAttempts: {
+  type: Number,
+  default: 0,
+},
 
     email: {
       type: String,
@@ -195,6 +199,32 @@ const mechanicSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+
+    resetOtpHash: {
+  type: String,
+  default: null,
+},
+
+resetOtpExpire: {
+  type: Date,
+  default: null,
+},
+
+resetOtpAttempts: {
+  type: Number,
+  default: 0,
+},
+
+resetTokenHash: {
+  type: String,
+  default: null,
+},
+
+resetTokenExpire: {
+  type: Date,
+  default: null,
+},
 
     // =====================================================
     // AUTH

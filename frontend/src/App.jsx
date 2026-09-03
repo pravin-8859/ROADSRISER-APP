@@ -91,9 +91,13 @@ function AppLayout() {
           />
 
           <Route
-            path="/user/dashboard"
-            element={<DashboardUser />}
-          />
+  path="/user/dashboard"
+  element={
+    <UserProtectedRoute>
+      <DashboardUser />
+    </UserProtectedRoute>
+  }
+/>
 
           {/* ================= MECHANIC ================= */}
 

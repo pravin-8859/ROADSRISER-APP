@@ -122,17 +122,10 @@ export const sendOtp = async (req, res) => {
           <p>Valid for 5 minutes.</p>
         `,
       });
-
-
-      return res.json({
-        success: true,
-        message: "OTP sent to email",
-
-        ...(process.env.DEBUG_SEND_OTP ===
-          "true" && {
-          debugOtp: otp,
-        }),
-      });
+return res.json({
+  success: true,
+  message: "OTP sent to email",
+});
     }
 
     // ================= PHONE OTP =================
@@ -167,14 +160,9 @@ export const sendOtp = async (req, res) => {
 
 
     return res.json({
-      success: true,
-      message: "OTP sent to phone",
-
-      ...(process.env.DEBUG_SEND_OTP ===
-        "true" && {
-        debugOtp: otp,
-      }),
-    });
+  success: true,
+  message: "OTP sent to phone",
+});
   } catch (err) {
     console.error(
       "sendOtp error:",

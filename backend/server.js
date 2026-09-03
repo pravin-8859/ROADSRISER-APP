@@ -3,7 +3,10 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-
+import {
+  notFound,
+  errorHandler,
+} from "./middleware/errorMiddleware.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import mechanicRoutes from "./routes/mechanicRoutes.js";
@@ -91,6 +94,14 @@ app.get("/", (req, res) => {
     message: "RoadsRiser API is running",
   });
 });
+
+
+// =====================================================
+// ERROR HANDLING
+// =====================================================
+
+app.use(notFound);
+app.use(errorHandler);
 
 // =====================================================
 // SERVER

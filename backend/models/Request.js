@@ -201,6 +201,13 @@ requestSchema.index({
 });
 
 /*
+ * Mechanic declined request filtering
+ */
+requestSchema.index({
+  declinedMechanics: 1,
+});
+
+/*
  * Geo queries
  */
 requestSchema.index({
@@ -211,7 +218,3 @@ export default mongoose.model(
   "Request",
   requestSchema
 );
-
-requestSchema.index({
-  declinedMechanics: 1,
-});

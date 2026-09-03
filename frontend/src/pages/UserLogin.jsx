@@ -61,22 +61,16 @@ export default function UserLogin() {
         password: form.password,
       });
 
-      const token = res?.data?.token;
+      const token = res?.data?.accessToken;
 
-      if (!token) {
-        throw new Error(
-          "Authentication token not received"
-        );
-      }
+if (!token) {
+  throw new Error(
+    "Authentication token not received"
+  );
+}
 
-      /*
-       * =========================================
-       * STORE USER AUTHENTICATION
-       * =========================================
-       */
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("role", "user");
+localStorage.setItem("token", token);
+localStorage.setItem("role", "user");
 
       // Remove stale mechanic authentication when switching to a user account.
       localStorage.removeItem("accessToken");

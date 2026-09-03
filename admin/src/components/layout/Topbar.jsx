@@ -5,10 +5,12 @@ import { FaBell, FaBars, FaSignOutAlt } from "react-icons/fa";
 export default function Topbar({ openSidebar }) {
 
   const handleLogout = () => {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("role");
-    window.location.href = "/admin/login";
-  };
+  localStorage.removeItem("adminAccessToken");
+  localStorage.removeItem("admin");
+  localStorage.removeItem("role");
+
+  window.location.href = "/admin/login";
+};
 
   return (
     <div className="w-full bg-gray-800 px-4 py-3 flex items-center justify-between shadow-md sticky top-0 z-30">

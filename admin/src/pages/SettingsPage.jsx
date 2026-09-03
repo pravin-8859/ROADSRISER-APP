@@ -128,9 +128,9 @@ export default function SettingsPage() {
   // =====================================================
 
   const handleLogout = () => {
-    localStorage.removeItem(
-      "adminToken"
-    );
+    localStorage.removeItem("adminAccessToken");
+localStorage.removeItem("admin");
+localStorage.removeItem("role");
 
     localStorage.removeItem("role");
 

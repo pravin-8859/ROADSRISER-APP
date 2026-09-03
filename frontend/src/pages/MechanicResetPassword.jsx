@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
+
 import {
   Link,
   useNavigate,
@@ -18,7 +22,6 @@ import {
   FaArrowLeft,
 } from "react-icons/fa";
 
-
 export default function MechanicResetPassword() {
   const navigate = useNavigate();
 
@@ -28,8 +31,10 @@ export default function MechanicResetPassword() {
   const email =
     searchParams.get("email") || "";
 
-
   const [otp, setOtp] =
+    useState("");
+
+  const [resetToken, setResetToken] =
     useState("");
 
   const [password, setPassword] =
@@ -56,6 +61,27 @@ export default function MechanicResetPassword() {
   const [resending, setResending] =
     useState(false);
 
+  // 60 second resend cooldown
+  const [resendCooldown, setResendCooldown] =
+    useState(60);
+
+  // =====================================================
+  // RESEND TIMER
+  // =====================================================
+
+  useEffect(() => {
+    if (resendCooldown <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setResendCooldown((prev) =>
+        prev > 0 ? prev - 1 : 0
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // =====================================================
   // VERIFY OTP
@@ -82,17 +108,27 @@ export default function MechanicResetPassword() {
     try {
       setVerifying(true);
 
-      await verifyMechanicResetOtp(
-        email,
-        otp
-      );
+      const res =
+        await verifyMechanicResetOtp(
+          email,
+          otp
+        );
 
+      const token =
+        res?.data?.resetToken;
+
+      if (!token) {
+        throw new Error(
+          "Reset token was not received."
+        );
+      }
+
+      setResetToken(token);
       setVerified(true);
 
       setSuccess(
         "OTP verified. You can now create a new password."
       );
-
     } catch (err) {
       console.error(
         "Verify mechanic reset OTP:",
@@ -101,14 +137,13 @@ export default function MechanicResetPassword() {
 
       setError(
         err?.response?.data?.message ||
+          err?.message ||
           "Invalid or expired OTP."
       );
-
     } finally {
       setVerifying(false);
     }
   };
-
 
   // =====================================================
   // RESET PASSWORD
@@ -122,7 +157,7 @@ export default function MechanicResetPassword() {
     setError("");
     setSuccess("");
 
-    if (!verified) {
+    if (!verified || !resetToken) {
       setError(
         "Please verify the OTP first."
       );
@@ -148,7 +183,7 @@ export default function MechanicResetPassword() {
 
       await resetMechanicPassword(
         email,
-        otp,
+        resetToken,
         password
       );
 
@@ -164,7 +199,6 @@ export default function MechanicResetPassword() {
           }
         );
       }, 1500);
-
     } catch (err) {
       console.error(
         "Reset mechanic password:",
@@ -175,12 +209,10 @@ export default function MechanicResetPassword() {
         err?.response?.data?.message ||
           "Unable to reset password."
       );
-
     } finally {
       setLoading(false);
     }
   };
-
 
   // =====================================================
   // RESEND OTP
@@ -197,6 +229,13 @@ export default function MechanicResetPassword() {
       return;
     }
 
+    if (
+      resendCooldown > 0 ||
+      resending
+    ) {
+      return;
+    }
+
     try {
       setResending(true);
 
@@ -205,12 +244,17 @@ export default function MechanicResetPassword() {
       );
 
       setOtp("");
+      setResetToken("");
       setVerified(false);
+      setPassword("");
+      setConfirmPassword("");
+
+      // Start fresh 60 second cooldown
+      setResendCooldown(60);
 
       setSuccess(
         "A new OTP has been sent to your email."
       );
-
     } catch (err) {
       console.error(
         "Resend mechanic OTP:",
@@ -221,12 +265,14 @@ export default function MechanicResetPassword() {
         err?.response?.data?.message ||
           "Unable to resend OTP."
       );
-
     } finally {
       setResending(false);
     }
   };
 
+  // =====================================================
+  // UI
+  // =====================================================
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex items-center justify-center px-4 py-24">
@@ -247,7 +293,6 @@ export default function MechanicResetPassword() {
 
           </div>
 
-
           {/* HEADER */}
 
           <div className="text-center mb-8">
@@ -266,7 +311,6 @@ export default function MechanicResetPassword() {
 
           </div>
 
-
           {/* ERROR */}
 
           {error && (
@@ -281,7 +325,6 @@ export default function MechanicResetPassword() {
             </div>
           )}
 
-
           {/* SUCCESS */}
 
           {success && (
@@ -295,7 +338,6 @@ export default function MechanicResetPassword() {
 
             </div>
           )}
-
 
           {!email ? (
             <div className="text-center">
@@ -351,6 +393,7 @@ export default function MechanicResetPassword() {
                         setOtp(value);
                         setError("");
                         setVerified(false);
+                        setResetToken("");
                       }}
                       placeholder="Enter 6-digit OTP"
                       disabled={verified}
@@ -360,7 +403,6 @@ export default function MechanicResetPassword() {
                   </div>
 
                 </div>
-
 
                 {!verified && (
                   <button
@@ -380,22 +422,25 @@ export default function MechanicResetPassword() {
                   </button>
                 )}
 
-
                 <button
                   type="button"
                   onClick={handleResend}
-                  disabled={resending}
-                  className="w-full text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                  disabled={
+                    resending ||
+                    resendCooldown > 0
+                  }
+                  className="w-full text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
 
                   {resending
                     ? "Sending..."
+                    : resendCooldown > 0
+                    ? `Resend OTP in ${resendCooldown}s`
                     : "Didn't receive OTP? Resend"}
 
                 </button>
 
               </div>
-
 
               {/* =================================================
                   NEW PASSWORD
@@ -403,7 +448,9 @@ export default function MechanicResetPassword() {
 
               {verified && (
                 <form
-                  onSubmit={handleResetPassword}
+                  onSubmit={
+                    handleResetPassword
+                  }
                   className="mt-7 space-y-5"
                 >
 
@@ -438,7 +485,6 @@ export default function MechanicResetPassword() {
 
                   </div>
 
-
                   <div>
 
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -470,7 +516,6 @@ export default function MechanicResetPassword() {
 
                   </div>
 
-
                   <button
                     type="submit"
                     disabled={loading}
@@ -487,7 +532,6 @@ export default function MechanicResetPassword() {
               )}
             </>
           )}
-
 
           <div className="mt-7 text-center">
 
