@@ -1,8 +1,10 @@
 import express from "express";
 import {
   otpLimiter,
+  signupLimiter,
   loginLimiter,
 } from "../middleware/rateLimit.js";
+
 import {
   sendOtp,
   mechanicSignup,
@@ -27,103 +29,62 @@ import { verifyMechanic } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// =====================================================
+// OTP
+router.post("/send-otp", otpLimiter, sendOtp);
+
+// SIGNUP
+router.post("/register", signupLimiter, mechanicSignup);
+
+// LOGIN
+router.post("/login", loginLimiter, mechanicLogin);
+
 // AUTH
-// =====================================================
+router.post("/refresh", refreshMechanicToken);
+router.post("/logout", logout);
 
-router.post(
-  "/send-otp",
-  otpLimiter,
-  sendOtp
-);
-
-router.post(
-  "/register",
-  mechanicSignup
-);
-
-router.post(
-  "/login",
-  loginLimiter,
-  mechanicLogin
-);
-
-router.post(
-  "/refresh",
-  refreshMechanicToken
-);
-
-router.post(
-  "/logout",
-  logout
-);
-
-// =====================================================
 // PROFILE
-// =====================================================
+router.get("/me", verifyMechanic, getMechanicProfile);
+router.put("/me", verifyMechanic, updateMechanicProfile);
 
-router.get(
-  "/me",
-  verifyMechanic,
-  getMechanicProfile
-);
-
-router.put(
-  "/me",
-  verifyMechanic,
-  updateMechanicProfile
-);
-// =====================================================
 // LOCATION
-// =====================================================
-
-// Permanent garage/shop location
 router.put(
   "/location/garage",
   verifyMechanic,
   updateGarageLocation
 );
 
-// Live/current mechanic location
 router.put(
   "/location/current",
   verifyMechanic,
   updateCurrentLocation
 );
 
-// Online / offline
+// AVAILABILITY
 router.put(
   "/availability",
   verifyMechanic,
   updateMechanicAvailability
 );
 
-// =====================================================
 // REQUESTS
-// =====================================================
-
-// Get pending + assigned requests
 router.get(
   "/requests",
   verifyMechanic,
   getMechanicRequests
 );
 
-// Accept request
 router.put(
   "/requests/:id/accept",
   verifyMechanic,
   acceptRequest
 );
 
-// Cancel assigned request
 router.put(
   "/requests/:id/cancel",
   verifyMechanic,
   cancelMechanicRequest
 );
 
-// Update request status
 router.put(
   "/requests/:id/status",
   verifyMechanic,

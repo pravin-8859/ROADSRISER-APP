@@ -76,10 +76,8 @@ export const sendOtp = async (req, res) => {
       phone: rawPhone,
     } = req.body;
 
-    const otp = generateOtp(4);
-
+    const otp = generateOtp(6);
     const otpHash = await hashOtp(otp);
-
     const otpExpire = new Date(
       Date.now() + 5 * 60 * 1000
     );
@@ -95,9 +93,27 @@ export const sendOtp = async (req, res) => {
       const emailAddress =
         cleanEmail(email);
 
+      if (
+        !/^\S+@\S+\.\S+$/.test(
+          emailAddress
+        )
+      ) {
+        return res.status(400).json({
+          message: "Valid email required",
+        });
+      }
+
       mech = await Mechanic.findOne({
         email: emailAddress,
       });
+
+      // Already verified account
+      if (mech?.isVerified) {
+        return res.status(400).json({
+          message:
+            "Account already registered. Please login.",
+        });
+      }
 
       if (!mech) {
         mech = new Mechanic({
@@ -107,6 +123,7 @@ export const sendOtp = async (req, res) => {
 
       mech.otpHash = otpHash;
       mech.otpExpire = otpExpire;
+      mech.otpAttempts = 0;
       mech.isVerified = false;
 
       await mech.save({
@@ -122,10 +139,11 @@ export const sendOtp = async (req, res) => {
           <p>Valid for 5 minutes.</p>
         `,
       });
-return res.json({
-  success: true,
-  message: "OTP sent to email",
-});
+
+      return res.json({
+        success: true,
+        message: "OTP sent to email",
+      });
     }
 
     // ================= PHONE OTP =================
@@ -144,6 +162,14 @@ return res.json({
       phone,
     });
 
+    // Already verified account
+    if (mech?.isVerified) {
+      return res.status(400).json({
+        message:
+          "Account already registered. Please login.",
+      });
+    }
+
     if (!mech) {
       mech = new Mechanic({
         phone,
@@ -152,17 +178,17 @@ return res.json({
 
     mech.otpHash = otpHash;
     mech.otpExpire = otpExpire;
+    mech.otpAttempts = 0;
     mech.isVerified = false;
 
     await mech.save({
       validateBeforeSave: false,
     });
 
-
     return res.json({
-  success: true,
-  message: "OTP sent to phone",
-});
+      success: true,
+      message: "OTP sent to phone",
+    });
   } catch (err) {
     console.error(
       "sendOtp error:",
@@ -174,6 +200,7 @@ return res.json({
     });
   }
 };
+
 
 // =========================================================
 // MECHANIC SIGNUP
@@ -196,11 +223,45 @@ export const mechanicSignup = async (
       garageLocation,
     } = req.body;
 
-    if (!otp) {
+    // ================= OTP VALIDATION =================
+
+    if (
+      !otp ||
+      typeof otp !== "string" ||
+      !/^\d{6}$/.test(otp)
+    ) {
       return res.status(400).json({
-        message: "OTP required",
+        message:
+          "Valid 6-digit OTP required",
       });
     }
+
+    // ================= PASSWORD VALIDATION =================
+
+    if (
+      !password ||
+      typeof password !== "string" ||
+      password.length < 6
+    ) {
+      return res.status(400).json({
+        message:
+          "Password must be at least 6 characters",
+      });
+    }
+
+    // ================= NAME VALIDATION =================
+
+    if (
+      !name ||
+      typeof name !== "string" ||
+      name.trim().length < 2
+    ) {
+      return res.status(400).json({
+        message: "Valid name is required",
+      });
+    }
+
+    // ================= NORMALIZE =================
 
     const phone =
       normalizePhone(rawPhone);
@@ -208,34 +269,103 @@ export const mechanicSignup = async (
     const emailAddress =
       cleanEmail(email);
 
-    let mech = null;
+    if (
+      !emailAddress ||
+      !/^\S+@\S+\.\S+$/.test(
+        emailAddress
+      )
+    ) {
+      return res.status(400).json({
+        message: "Valid email is required",
+      });
+    }
 
-    if (emailAddress) {
-      mech = await Mechanic.findOne({
+    if (
+      phone &&
+      !/^\d{10}$/.test(phone)
+    ) {
+      return res.status(400).json({
+        message:
+          "Phone number must contain 10 digits",
+      });
+    }
+
+    // ================= FIND OTP RECORD =================
+
+    let mech =
+      await Mechanic.findOne({
         email: emailAddress,
+      });
+
+    if (mech?.isVerified) {
+      return res.status(400).json({
+        message:
+          "Account already registered. Please login.",
       });
     }
 
     if (!mech && phone) {
-      mech = await Mechanic.findOne({
-        phone,
+      mech =
+        await Mechanic.findOne({
+          phone,
+        });
+    }
+
+    if (mech?.isVerified) {
+      return res.status(400).json({
+        message:
+          "Account already registered. Please login.",
       });
     }
 
-    if (!mech || !mech.otpHash) {
+    if (
+      !mech ||
+      !mech.otpHash
+    ) {
       return res.status(400).json({
         message: "OTP not requested",
       });
     }
 
+    // ================= OTP EXPIRY =================
+
     if (
       !mech.otpExpire ||
       new Date() > mech.otpExpire
     ) {
+      mech.otpHash = null;
+      mech.otpExpire = null;
+      mech.otpAttempts = 0;
+
+      await mech.save({
+        validateBeforeSave: false,
+      });
+
       return res.status(400).json({
         message: "OTP expired",
       });
     }
+
+    // ================= OTP ATTEMPT LIMIT =================
+
+    if (
+      (mech.otpAttempts || 0) >= 5
+    ) {
+      mech.otpHash = null;
+      mech.otpExpire = null;
+      mech.otpAttempts = 0;
+
+      await mech.save({
+        validateBeforeSave: false,
+      });
+
+      return res.status(429).json({
+        message:
+          "Too many invalid OTP attempts. Please request a new OTP.",
+      });
+    }
+
+    // ================= VERIFY OTP =================
 
     const validOtp =
       await verifyOtpHash(
@@ -244,12 +374,36 @@ export const mechanicSignup = async (
       );
 
     if (!validOtp) {
+      mech.otpAttempts =
+        (mech.otpAttempts || 0) + 1;
+
+      if (
+        mech.otpAttempts >= 5
+      ) {
+        mech.otpHash = null;
+        mech.otpExpire = null;
+        mech.otpAttempts = 0;
+
+        await mech.save({
+          validateBeforeSave: false,
+        });
+
+        return res.status(429).json({
+          message:
+            "Too many invalid OTP attempts. Please request a new OTP.",
+        });
+      }
+
+      await mech.save({
+        validateBeforeSave: false,
+      });
+
       return res.status(400).json({
         message: "Invalid OTP",
       });
     }
 
-    // ================= PHONE =================
+    // ================= PHONE DUPLICATE CHECK =================
 
     if (phone) {
       const existingPhone =
@@ -258,6 +412,7 @@ export const mechanicSignup = async (
           _id: {
             $ne: mech._id,
           },
+          isVerified: true,
         });
 
       if (existingPhone) {
@@ -273,7 +428,7 @@ export const mechanicSignup = async (
     // ================= BASIC DATA =================
 
     mech.name =
-      name?.trim() || "";
+      name.trim();
 
     mech.email =
       emailAddress;
@@ -304,12 +459,17 @@ export const mechanicSignup = async (
         );
     }
 
+    // ================= VERIFY ACCOUNT =================
+
     mech.isVerified = true;
 
-    mech.otpHash = undefined;
-    mech.otpExpire = undefined;
+    mech.otpHash = null;
+    mech.otpExpire = null;
+    mech.otpAttempts = 0;
 
     await mech.save();
+
+    // ================= RESPONSE =================
 
     return res.status(201).json({
       success: true,
@@ -323,7 +483,8 @@ export const mechanicSignup = async (
         phone: mech.phone || "",
         garageName:
           mech.garageName || "",
-        gst: mech.gst || "",
+        gst:
+          mech.gst || "",
         address:
           mech.address || "",
         garageLocation:
@@ -350,7 +511,6 @@ export const mechanicSignup = async (
     });
   }
 };
-
 // =========================================================
 // MECHANIC LOGIN
 // =========================================================

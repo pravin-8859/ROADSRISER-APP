@@ -186,19 +186,16 @@ const mechanicSchema = new mongoose.Schema(
       default: null,
     },
 
+    otpAttempts: {
+  type: Number,
+  default: 0,
+},
+
     // =====================================================
     // PASSWORD RESET OTP
     // =====================================================
 
-    resetOtpHash: {
-      type: String,
-      default: null,
-    },
 
-    resetOtpExpire: {
-      type: Date,
-      default: null,
-    },
 
 
     resetOtpHash: {
