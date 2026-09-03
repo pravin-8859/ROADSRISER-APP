@@ -1,5 +1,5 @@
 import express from "express";
-
+import { loginLimiter } from "../middleware/rateLimit.js";
 import {
   adminLogin,
   refreshAdminToken,
@@ -23,7 +23,11 @@ const router = express.Router();
 // AUTH
 // =====================================================
 
-router.post("/login", adminLogin);
+router.post(
+  "/login",
+  loginLimiter,
+  adminLogin
+);
 
 router.post("/refresh", refreshAdminToken);
 

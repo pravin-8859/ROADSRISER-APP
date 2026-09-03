@@ -1,5 +1,5 @@
 import express from "express";
-
+import { otpLimiter, loginLimiter } from "../middleware/rateLimit.js";
 import {
   sendOtp,
   loginUser,
@@ -44,6 +44,7 @@ const router = express.Router();
 // New email OTP signup flow
 router.post(
   "/send-signup-otp",
+  otpLimiter,
   sendSignupOtp
 );
 
@@ -55,6 +56,7 @@ router.post(
 // Login
 router.post(
   "/login",
+  loginLimiter,
   loginUser
 );
 
@@ -77,6 +79,7 @@ router.post(
 
 router.post(
   "/forgot-password/send-otp",
+  otpLimiter,
   sendPasswordResetOtp
 );
 
@@ -100,6 +103,7 @@ router.post(
 
 router.post(
   "/send-otp",
+  otpLimiter,
   sendOtp
 );
 

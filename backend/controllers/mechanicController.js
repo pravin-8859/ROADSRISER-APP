@@ -123,10 +123,6 @@ export const sendOtp = async (req, res) => {
         `,
       });
 
-      console.log(
-        "MECHANIC EMAIL OTP:",
-        otp
-      );
 
       return res.json({
         success: true,
@@ -169,10 +165,6 @@ export const sendOtp = async (req, res) => {
       validateBeforeSave: false,
     });
 
-    console.log(
-      "MECHANIC PHONE OTP:",
-      otp
-    );
 
     return res.json({
       success: true,

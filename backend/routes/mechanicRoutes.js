@@ -1,5 +1,8 @@
 import express from "express";
-
+import {
+  otpLimiter,
+  loginLimiter,
+} from "../middleware/rateLimit.js";
 import {
   sendOtp,
   mechanicSignup,
@@ -30,6 +33,7 @@ const router = express.Router();
 
 router.post(
   "/send-otp",
+  otpLimiter,
   sendOtp
 );
 
@@ -40,6 +44,7 @@ router.post(
 
 router.post(
   "/login",
+  loginLimiter,
   mechanicLogin
 );
 
