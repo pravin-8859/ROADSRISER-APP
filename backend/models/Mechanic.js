@@ -3,19 +3,12 @@ import bcrypt from "bcrypt";
 
 const mechanicSchema = new mongoose.Schema(
   {
-    // =====================================================
     // BASIC PROFILE
-    // =====================================================
-
     name: {
       type: String,
       trim: true,
       default: "",
     },
-    resetOtpAttempts: {
-  type: Number,
-  default: 0,
-},
 
     email: {
       type: String,
@@ -58,25 +51,17 @@ const mechanicSchema = new mongoose.Schema(
       default: "",
     },
 
-    // =====================================================
     // PERMANENT GARAGE LOCATION
-    // =====================================================
-
     garageLocation: {
       type: {
         type: String,
         enum: ["Point"],
       },
-
       coordinates: {
         type: [Number],
-
         validate: {
           validator: function (value) {
-            if (
-              value === undefined ||
-              value === null
-            ) {
+            if (value === undefined || value === null) {
               return true;
             }
 
@@ -91,32 +76,23 @@ const mechanicSchema = new mongoose.Schema(
               value[1] <= 90
             );
           },
-
           message:
             "Garage coordinates must be [longitude, latitude].",
         },
       },
     },
 
-    // =====================================================
-    // CURRENT / LIVE LOCATION
-    // =====================================================
-
+    // CURRENT LOCATION
     currentLocation: {
       type: {
         type: String,
         enum: ["Point"],
       },
-
       coordinates: {
         type: [Number],
-
         validate: {
           validator: function (value) {
-            if (
-              value === undefined ||
-              value === null
-            ) {
+            if (value === undefined || value === null) {
               return true;
             }
 
@@ -131,17 +107,13 @@ const mechanicSchema = new mongoose.Schema(
               value[1] <= 90
             );
           },
-
           message:
             "Current coordinates must be [longitude, latitude].",
         },
       },
     },
 
-    // =====================================================
     // AVAILABILITY
-    // =====================================================
-
     isOnline: {
       type: Boolean,
       default: false,
@@ -152,10 +124,7 @@ const mechanicSchema = new mongoose.Schema(
       default: null,
     },
 
-    // =====================================================
     // ACTIVE REQUEST
-    // =====================================================
-
     activeRequest: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Request",
@@ -163,19 +132,13 @@ const mechanicSchema = new mongoose.Schema(
       index: true,
     },
 
-    // =====================================================
     // VERIFICATION
-    // =====================================================
-
     isVerified: {
       type: Boolean,
       default: false,
     },
 
-    // =====================================================
     // SIGNUP OTP
-    // =====================================================
-
     otpHash: {
       type: String,
       default: null,
@@ -187,46 +150,37 @@ const mechanicSchema = new mongoose.Schema(
     },
 
     otpAttempts: {
-  type: Number,
-  default: 0,
-},
+      type: Number,
+      default: 0,
+    },
 
-    // =====================================================
     // PASSWORD RESET OTP
-    // =====================================================
-
-
-
-
     resetOtpHash: {
-  type: String,
-  default: null,
-},
+      type: String,
+      default: null,
+    },
 
-resetOtpExpire: {
-  type: Date,
-  default: null,
-},
+    resetOtpExpire: {
+      type: Date,
+      default: null,
+    },
 
-resetOtpAttempts: {
-  type: Number,
-  default: 0,
-},
+    resetOtpAttempts: {
+      type: Number,
+      default: 0,
+    },
 
-resetTokenHash: {
-  type: String,
-  default: null,
-},
+    resetTokenHash: {
+      type: String,
+      default: null,
+    },
 
-resetTokenExpire: {
-  type: Date,
-  default: null,
-},
+    resetTokenExpire: {
+      type: Date,
+      default: null,
+    },
 
-    // =====================================================
     // AUTH
-    // =====================================================
-
     refreshToken: {
       type: String,
       default: null,
@@ -237,10 +191,7 @@ resetTokenExpire: {
   }
 );
 
-// =====================================================
 // EMAIL INDEX
-// =====================================================
-
 mechanicSchema.index(
   { email: 1 },
   {
@@ -249,10 +200,7 @@ mechanicSchema.index(
   }
 );
 
-// =====================================================
 // GEO-SPATIAL INDEXES
-// =====================================================
-
 mechanicSchema.index({
   garageLocation: "2dsphere",
 });
@@ -261,63 +209,35 @@ mechanicSchema.index({
   currentLocation: "2dsphere",
 });
 
-// =====================================================
-// ONLINE + CURRENT LOCATION INDEX
-// =====================================================
-
 mechanicSchema.index({
   isOnline: 1,
   currentLocation: "2dsphere",
 });
 
-// =====================================================
 // PASSWORD HASHING
-// =====================================================
-
-mechanicSchema.pre(
-  "save",
-  async function (next) {
-    try {
-      if (
-        !this.isModified("password") ||
-        !this.password
-      ) {
-        return next();
-      }
-
-      this.password =
-        await bcrypt.hash(
-          this.password,
-          10
-        );
-
-      next();
-    } catch (err) {
-      next(err);
+mechanicSchema.pre("save", async function (next) {
+  try {
+    if (!this.isModified("password") || !this.password) {
+      return next();
     }
+
+    this.password = await bcrypt.hash(this.password, 10);
+
+    next();
+  } catch (error) {
+    next(error);
   }
-);
+});
 
-// =====================================================
 // PASSWORD COMPARISON
-// =====================================================
+mechanicSchema.methods.matchPassword = async function (
+  enteredPassword
+) {
+  if (!this.password || !enteredPassword) {
+    return false;
+  }
 
-mechanicSchema.methods.matchPassword =
-  async function (enteredPassword) {
-    if (
-      !this.password ||
-      !enteredPassword
-    ) {
-      return false;
-    }
+  return bcrypt.compare(enteredPassword, this.password);
+};
 
-    return bcrypt.compare(
-      enteredPassword,
-      this.password
-    );
-  };
-
-export default mongoose.model(
-  "Mechanic",
-  mechanicSchema
-);
+export default mongoose.model("Mechanic", mechanicSchema);

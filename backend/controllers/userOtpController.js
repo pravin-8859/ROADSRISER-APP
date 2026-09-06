@@ -617,15 +617,24 @@ export const verifyPasswordResetOtp = async (
       verification.otpHash
     );
 
-    if (!validOtp) {
-      verification.attempts += 1;
+   if (!validOtp) {
+  verification.attempts += 1;
 
-      await verification.save();
+  if (verification.attempts >= MAX_ATTEMPTS) {
+    await verification.deleteOne();
 
-      return res.status(400).json({
-        message: "Invalid OTP",
-      });
-    }
+    return res.status(429).json({
+      message:
+        "Too many incorrect attempts. Please request a new OTP.",
+    });
+  }
+
+  await verification.save();
+
+  return res.status(400).json({
+    message: "Invalid OTP",
+  });
+}
 
 
     const resetToken =

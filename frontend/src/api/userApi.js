@@ -14,22 +14,6 @@ export const loginUser = async (email, password) => {
   return res.data;
 };
 
-export const registerUser = async (
-  name,
-  email,
-  password,
-  phone
-) => {
-  const res = await API.post("/users/register", {
-    name: name.trim(),
-    email: email.trim().toLowerCase(),
-    password,
-    phone: phone?.trim() || undefined,
-  });
-
-  return res.data;
-};
-
 // ================= PROFILE =================
 
 export const getUserProfileApi = async () => {
@@ -59,6 +43,11 @@ export const createRequestApi = async (data) => {
   return res.data;
 };
 
+export const cancelUserRequestApi = async (requestId) => {
+  const res = await API.put(`/users/${requestId}/cancel`);
+  return res.data;
+};
+
 // ================= NEARBY MECHANICS =================
 
 export const getNearbyMechanicsApi = async ({
@@ -66,16 +55,13 @@ export const getNearbyMechanicsApi = async ({
   lng,
   radius = 10,
 }) => {
-  const res = await API.get(
-    "/users/mechanics/nearby",
-    {
-      params: {
-        lat,
-        lng,
-        radius,
-      },
-    }
-  );
+  const res = await API.get("/users/mechanics/nearby", {
+    params: {
+      lat,
+      lng,
+      radius,
+    },
+  });
 
   return res.data;
 };
@@ -88,16 +74,6 @@ export const getNotificationsApi = async () => {
 };
 
 export const markNotificationReadApi = async (id) => {
-  const res = await API.post(
-    `/users/notifications/${id}/read`
-  );
-
-  return res.data;
-};
-export const cancelUserRequestApi = async (requestId) => {
-  const res = await API.put(
-    `/users/${requestId}/cancel`
-  );
-
+  const res = await API.post(`/users/notifications/${id}/read`);
   return res.data;
 };

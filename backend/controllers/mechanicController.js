@@ -19,17 +19,16 @@ import jwt from "jsonwebtoken";
 // HELPERS
 // =========================================================
 
-const normalizePhone = (raw) =>
-  raw
-    ? String(raw)
-        .replace(/\D/g, "")
-        .slice(-10)
-    : "";
+const normalizePhone = (raw = "") => {
+  const digits = String(raw).replace(/\D/g, "");
+  return digits ? digits.slice(-10) : "";
+};
 
-const cleanEmail = (raw) =>
-  raw
-    ? String(raw).toLowerCase().trim()
-    : "";
+const cleanEmail = (raw = "") =>
+  String(raw).toLowerCase().trim();
+
+const getMechanicId = (req) =>
+  req.mechanic?.id || req.mechanic?._id;
 
 const isValidCoordinates = (coordinates) => {
   if (
@@ -65,6 +64,56 @@ const buildPoint = (coordinates) => {
   };
 };
 
+const safeMechanic = (mechanic) => {
+  if (!mechanic) return null;
+
+  const data = mechanic.toObject
+    ? mechanic.toObject()
+    : { ...mechanic };
+
+  delete data.password;
+  delete data.refreshToken;
+  delete data.otpHash;
+  delete data.otpExpire;
+  delete data.otpAttempts;
+  delete data.resetOtpHash;
+  delete data.resetOtpExpire;
+  delete data.resetOtpAttempts;
+  delete data.resetTokenHash;
+  delete data.resetTokenExpire;
+
+  return data;
+};
+
+const refreshCookieOptions = {
+  httpOnly: true,
+  sameSite:
+    process.env.NODE_ENV === "production"
+      ? "strict"
+      : "lax",
+  secure: process.env.NODE_ENV === "production",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
+const setRefreshCookie = (res, token) => {
+  res.cookie(
+    "rr_refresh",
+    token,
+    refreshCookieOptions
+  );
+};
+
+const clearRefreshCookie = (res) => {
+  res.clearCookie("rr_refresh", {
+    httpOnly: true,
+    sameSite:
+      process.env.NODE_ENV === "production"
+        ? "strict"
+        : "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+};
+
 // =========================================================
 // SEND OTP
 // =========================================================
@@ -76,131 +125,106 @@ export const sendOtp = async (req, res) => {
       phone: rawPhone,
     } = req.body;
 
+    const emailAddress = cleanEmail(email);
+    const phone = normalizePhone(rawPhone);
+
+    if (!emailAddress && !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Email or phone is required",
+      });
+    }
+
+    if (
+      emailAddress &&
+      !/^\S+@\S+\.\S+$/.test(emailAddress)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid email required",
+      });
+    }
+
+    if (
+      phone &&
+      !/^\d{10}$/.test(phone)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid phone number required",
+      });
+    }
+
+    /*
+      Current project has email OTP implementation.
+      Phone OTP service is not connected yet.
+    */
+
+    if (!emailAddress) {
+      return res.status(501).json({
+        success: false,
+        message:
+          "Phone OTP service is not configured. Please use email OTP.",
+      });
+    }
+
     const otp = generateOtp(6);
     const otpHash = await hashOtp(otp);
+
     const otpExpire = new Date(
       Date.now() + 5 * 60 * 1000
     );
 
-    let mech = null;
-
-    // ================= EMAIL OTP =================
-
-    if (
-      email &&
-      typeof email === "string"
-    ) {
-      const emailAddress =
-        cleanEmail(email);
-
-      if (
-        !/^\S+@\S+\.\S+$/.test(
-          emailAddress
-        )
-      ) {
-        return res.status(400).json({
-          message: "Valid email required",
-        });
-      }
-
-      mech = await Mechanic.findOne({
-        email: emailAddress,
-      });
-
-      // Already verified account
-      if (mech?.isVerified) {
-        return res.status(400).json({
-          message:
-            "Account already registered. Please login.",
-        });
-      }
-
-      if (!mech) {
-        mech = new Mechanic({
-          email: emailAddress,
-        });
-      }
-
-      mech.otpHash = otpHash;
-      mech.otpExpire = otpExpire;
-      mech.otpAttempts = 0;
-      mech.isVerified = false;
-
-      await mech.save({
-        validateBeforeSave: false,
-      });
-
-      await sendEmail({
-        to: emailAddress,
-        subject: "Your RoadsRiser OTP",
-        html: `
-          <h3>RoadsRiser OTP</h3>
-          <p>Your OTP is <b>${otp}</b></p>
-          <p>Valid for 5 minutes.</p>
-        `,
-      });
-
-      return res.json({
-        success: true,
-        message: "OTP sent to email",
-      });
-    }
-
-    // ================= PHONE OTP =================
-
-    const phone =
-      normalizePhone(rawPhone);
-
-    if (!/^\d{10}$/.test(phone)) {
-      return res.status(400).json({
-        message:
-          "Valid email or phone required",
-      });
-    }
-
-    mech = await Mechanic.findOne({
-      phone,
+    let mechanic = await Mechanic.findOne({
+      email: emailAddress,
     });
 
-    // Already verified account
-    if (mech?.isVerified) {
+    if (mechanic?.isVerified) {
       return res.status(400).json({
+        success: false,
         message:
           "Account already registered. Please login.",
       });
     }
 
-    if (!mech) {
-      mech = new Mechanic({
-        phone,
+    if (!mechanic) {
+      mechanic = new Mechanic({
+        email: emailAddress,
       });
     }
 
-    mech.otpHash = otpHash;
-    mech.otpExpire = otpExpire;
-    mech.otpAttempts = 0;
-    mech.isVerified = false;
+    mechanic.otpHash = otpHash;
+    mechanic.otpExpire = otpExpire;
+    mechanic.otpAttempts = 0;
+    mechanic.isVerified = false;
 
-    await mech.save({
+    await mechanic.save({
       validateBeforeSave: false,
     });
 
-    return res.json({
+    await sendEmail({
+      to: emailAddress,
+      subject: "Your RoadsRiser OTP",
+      html: `
+        <h3>RoadsRiser OTP</h3>
+        <p>Your OTP is <b>${otp}</b></p>
+        <p>Valid for 5 minutes.</p>
+      `,
+    });
+
+    return res.status(200).json({
       success: true,
-      message: "OTP sent to phone",
+      message: "OTP sent to email",
     });
   } catch (err) {
-    console.error(
-      "sendOtp error:",
-      err
-    );
+    console.error("sendOtp error:", err);
 
     return res.status(500).json({
+      success: false,
       message: "Failed to send OTP",
     });
   }
 };
-
 
 // =========================================================
 // MECHANIC SIGNUP
@@ -231,8 +255,8 @@ export const mechanicSignup = async (
       !/^\d{6}$/.test(otp)
     ) {
       return res.status(400).json({
-        message:
-          "Valid 6-digit OTP required",
+        success: false,
+        message: "Valid 6-digit OTP required",
       });
     }
 
@@ -244,6 +268,7 @@ export const mechanicSignup = async (
       password.length < 6
     ) {
       return res.status(400).json({
+        success: false,
         message:
           "Password must be at least 6 characters",
       });
@@ -257,25 +282,22 @@ export const mechanicSignup = async (
       name.trim().length < 2
     ) {
       return res.status(400).json({
+        success: false,
         message: "Valid name is required",
       });
     }
 
     // ================= NORMALIZE =================
 
-    const phone =
-      normalizePhone(rawPhone);
-
-    const emailAddress =
-      cleanEmail(email);
+    const emailAddress = cleanEmail(email);
+    const phone = normalizePhone(rawPhone);
 
     if (
       !emailAddress ||
-      !/^\S+@\S+\.\S+$/.test(
-        emailAddress
-      )
+      !/^\S+@\S+\.\S+$/.test(emailAddress)
     ) {
       return res.status(400).json({
+        success: false,
         message: "Valid email is required",
       });
     }
@@ -285,6 +307,7 @@ export const mechanicSignup = async (
       !/^\d{10}$/.test(phone)
     ) {
       return res.status(400).json({
+        success: false,
         message:
           "Phone number must contain 10 digits",
       });
@@ -292,37 +315,31 @@ export const mechanicSignup = async (
 
     // ================= FIND OTP RECORD =================
 
-    let mech =
-      await Mechanic.findOne({
-        email: emailAddress,
-      });
+    let mechanic = await Mechanic.findOne({
+      email: emailAddress,
+    });
 
-    if (mech?.isVerified) {
+    if (mechanic?.isVerified) {
       return res.status(400).json({
+        success: false,
         message:
           "Account already registered. Please login.",
       });
     }
 
-    if (!mech && phone) {
-      mech =
-        await Mechanic.findOne({
-          phone,
-        });
-    }
-
-    if (mech?.isVerified) {
+    if (!mechanic) {
       return res.status(400).json({
-        message:
-          "Account already registered. Please login.",
+        success: false,
+        message: "Please request OTP first",
       });
     }
 
     if (
-      !mech ||
-      !mech.otpHash
+      !mechanic.otpHash ||
+      !mechanic.otpExpire
     ) {
       return res.status(400).json({
+        success: false,
         message: "OTP not requested",
       });
     }
@@ -330,18 +347,18 @@ export const mechanicSignup = async (
     // ================= OTP EXPIRY =================
 
     if (
-      !mech.otpExpire ||
-      new Date() > mech.otpExpire
+      new Date() > new Date(mechanic.otpExpire)
     ) {
-      mech.otpHash = null;
-      mech.otpExpire = null;
-      mech.otpAttempts = 0;
+      mechanic.otpHash = null;
+      mechanic.otpExpire = null;
+      mechanic.otpAttempts = 0;
 
-      await mech.save({
+      await mechanic.save({
         validateBeforeSave: false,
       });
 
       return res.status(400).json({
+        success: false,
         message: "OTP expired",
       });
     }
@@ -349,17 +366,18 @@ export const mechanicSignup = async (
     // ================= OTP ATTEMPT LIMIT =================
 
     if (
-      (mech.otpAttempts || 0) >= 5
+      Number(mechanic.otpAttempts || 0) >= 5
     ) {
-      mech.otpHash = null;
-      mech.otpExpire = null;
-      mech.otpAttempts = 0;
+      mechanic.otpHash = null;
+      mechanic.otpExpire = null;
+      mechanic.otpAttempts = 0;
 
-      await mech.save({
+      await mechanic.save({
         validateBeforeSave: false,
       });
 
       return res.status(429).json({
+        success: false,
         message:
           "Too many invalid OTP attempts. Please request a new OTP.",
       });
@@ -367,38 +385,37 @@ export const mechanicSignup = async (
 
     // ================= VERIFY OTP =================
 
-    const validOtp =
-      await verifyOtpHash(
-        otp,
-        mech.otpHash
-      );
+    const validOtp = await verifyOtpHash(
+      otp,
+      mechanic.otpHash
+    );
 
     if (!validOtp) {
-      mech.otpAttempts =
-        (mech.otpAttempts || 0) + 1;
+      mechanic.otpAttempts =
+        Number(mechanic.otpAttempts || 0) + 1;
 
-      if (
-        mech.otpAttempts >= 5
-      ) {
-        mech.otpHash = null;
-        mech.otpExpire = null;
-        mech.otpAttempts = 0;
+      if (mechanic.otpAttempts >= 5) {
+        mechanic.otpHash = null;
+        mechanic.otpExpire = null;
+        mechanic.otpAttempts = 0;
 
-        await mech.save({
+        await mechanic.save({
           validateBeforeSave: false,
         });
 
         return res.status(429).json({
+          success: false,
           message:
             "Too many invalid OTP attempts. Please request a new OTP.",
         });
       }
 
-      await mech.save({
+      await mechanic.save({
         validateBeforeSave: false,
       });
 
       return res.status(400).json({
+        success: false,
         message: "Invalid OTP",
       });
     }
@@ -410,88 +427,78 @@ export const mechanicSignup = async (
         await Mechanic.findOne({
           phone,
           _id: {
-            $ne: mech._id,
+            $ne: mechanic._id,
           },
           isVerified: true,
         });
 
       if (existingPhone) {
         return res.status(400).json({
-          message:
-            "Phone already registered",
+          success: false,
+          message: "Phone already registered",
         });
       }
 
-      mech.phone = phone;
+      mechanic.phone = phone;
     }
 
     // ================= BASIC DATA =================
 
-    mech.name =
-      name.trim();
-
-    mech.email =
-      emailAddress;
-
-    mech.password =
-      password;
-
-    mech.gst =
-      gst?.trim() || "";
-
-    mech.garageName =
+    mechanic.name = name.trim();
+    mechanic.email = emailAddress;
+    mechanic.password = password;
+    mechanic.gst = gst?.trim() || "";
+    mechanic.garageName =
       garageName?.trim() || "";
-
-    mech.address =
+    mechanic.address =
       address?.trim() || "";
 
     // ================= GARAGE LOCATION =================
 
-    if (
-      garageLocation?.coordinates &&
-      isValidCoordinates(
-        garageLocation.coordinates
-      )
-    ) {
-      mech.garageLocation =
-        buildPoint(
+    if (garageLocation?.coordinates) {
+      if (
+        !isValidCoordinates(
           garageLocation.coordinates
-        );
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid coordinates required as [longitude, latitude]",
+        });
+      }
+
+      mechanic.garageLocation = buildPoint(
+        garageLocation.coordinates
+      );
     }
 
     // ================= VERIFY ACCOUNT =================
 
-    mech.isVerified = true;
+    mechanic.isVerified = true;
+    mechanic.otpHash = null;
+    mechanic.otpExpire = null;
+    mechanic.otpAttempts = 0;
 
-    mech.otpHash = null;
-    mech.otpExpire = null;
-    mech.otpAttempts = 0;
+    await mechanic.save();
 
-    await mech.save();
+    // ================= TOKEN GENERATION =================
 
-    // ================= RESPONSE =================
+    const accessToken = createAccessToken(mechanic._id);
+
+    const refreshToken = createRefreshToken(mechanic._id);
+
+    mechanic.refreshToken = refreshToken;
+    await mechanic.save();
+
+    setRefreshCookie(res, refreshToken);
 
     return res.status(201).json({
       success: true,
       message:
         "Mechanic registered successfully",
-
-      mechanic: {
-        id: mech._id,
-        name: mech.name,
-        email: mech.email,
-        phone: mech.phone || "",
-        garageName:
-          mech.garageName || "",
-        gst:
-          mech.gst || "",
-        address:
-          mech.address || "",
-        garageLocation:
-          mech.garageLocation || null,
-        isVerified:
-          mech.isVerified,
-      },
+      accessToken,
+      mechanic: safeMechanic(mechanic),
     });
   } catch (err) {
     console.error(
@@ -501,12 +508,14 @@ export const mechanicSignup = async (
 
     if (err.code === 11000) {
       return res.status(400).json({
+        success: false,
         message:
           "Email or phone already registered",
       });
     }
 
     return res.status(500).json({
+      success: false,
       message: "Signup failed",
     });
   }
@@ -515,112 +524,81 @@ export const mechanicSignup = async (
 // MECHANIC LOGIN
 // =========================================================
 
-export const mechanicLogin = async (
-  req,
-  res
-) => {
+export const mechanicLogin = async (req, res) => {
   try {
     const {
       email,
       password,
     } = req.body;
 
-    if (!email || !password) {
+    const emailAddress = cleanEmail(email);
+
+    if (
+      !emailAddress ||
+      !/^\S+@\S+\.\S+$/.test(emailAddress)
+    ) {
       return res.status(400).json({
-        message:
-          "Email and password are required",
+        success: false,
+        message: "Valid email is required",
       });
     }
 
-    const cleanEmail =
-      email.toLowerCase().trim();
-
-    const mech =
-      await Mechanic.findOne({
-        email: cleanEmail,
-      });
-
-    if (!mech) {
-      return res.status(404).json({
-        message:
-          "Mechanic not found",
-      });
-    }
-
-    const match =
-      await mech.matchPassword(
-        password
-      );
-
-    if (!match) {
+    if (
+      !password ||
+      typeof password !== "string"
+    ) {
       return res.status(400).json({
-        message:
-          "Invalid credentials",
+        success: false,
+        message: "Password is required",
       });
     }
 
-    if (!mech.isVerified) {
+    const mechanic = await Mechanic.findOne({
+      email: emailAddress,
+    });
+
+    if (!mechanic) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    const isPasswordValid =
+      await mechanic.matchPassword(password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    if (!mechanic.isVerified) {
       return res.status(403).json({
+        success: false,
         message:
-          "Mechanic account is not verified",
+          "Account is not verified. Please verify your OTP.",
       });
     }
 
-    // ================= ACCESS TOKEN =================
+    const accessToken = createAccessToken(mechanic._id);
 
-    const accessToken =
-      createAccessToken(
-        mech._id
-      );
+    const refreshToken = createRefreshToken(mechanic._id);
 
-    // ================= REFRESH TOKEN =================
+    mechanic.refreshToken = refreshToken;
 
-    const refreshToken =
-      createRefreshToken(
-        mech._id
-      );
+    await mechanic.save({
+      validateBeforeSave: false,
+    });
 
-    mech.refreshToken =
-      refreshToken;
+    setRefreshCookie(res, refreshToken);
 
-    await mech.save();
-
-    // ================= COOKIE =================
-
-    res.cookie(
-      "rr_refresh",
-      refreshToken,
-      {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: false,
-        maxAge:
-          7 * 24 * 60 * 60 * 1000,
-      }
-    );
-
-    return res.json({
+    return res.status(200).json({
       success: true,
-      message:
-        "Login successful",
-
+      message: "Login successful",
       accessToken,
-
-      mechanic: {
-        id: mech._id,
-        name: mech.name || "",
-        email: mech.email || "",
-        phone: mech.phone || "",
-        garageName:
-          mech.garageName || "",
-        gst: mech.gst || "",
-        address:
-          mech.address || "",
-        profilePhoto:
-          mech.profilePhoto || "",
-        isVerified:
-          mech.isVerified,
-      },
+      mechanic: safeMechanic(mechanic),
     });
   } catch (err) {
     console.error(
@@ -629,6 +607,7 @@ export const mechanicLogin = async (
     );
 
     return res.status(500).json({
+      success: false,
       message: "Login failed",
     });
   }
@@ -638,112 +617,129 @@ export const mechanicLogin = async (
 // REFRESH MECHANIC ACCESS TOKEN
 // =========================================================
 
-export const refreshMechanicToken =
-  async (req, res) => {
-    try {
-      const token =
-        req.cookies?.rr_refresh;
+export const refreshMechanicToken = async (req, res) => {
+  try {
+    const oldRefreshToken = req.cookies?.rr_refresh;
 
-      if (!token) {
-        return res.status(401).json({
-          message:
-            "Refresh token missing",
-        });
-      }
-
-      const decoded =
-        jwt.verify(
-          token,
-          process.env.JWT_REFRESH_SECRET
-        );
-
-      if (
-        !decoded.id ||
-        decoded.type !== "mechanic"
-      ) {
-        return res.status(401).json({
-          message:
-            "Invalid refresh token",
-        });
-      }
-
-      const mechanic =
-        await Mechanic.findOne({
-          _id: decoded.id,
-          refreshToken: token,
-        });
-
-      if (!mechanic) {
-        return res.status(401).json({
-          message:
-            "Refresh token is no longer valid",
-        });
-      }
-
-      const accessToken =
-        createAccessToken(
-          mechanic._id
-        );
-
-      return res.json({
-        success: true,
-        accessToken,
-      });
-    } catch (err) {
-      console.error(
-        "refreshMechanicToken error:",
-        err.message
-      );
-
+    if (!oldRefreshToken) {
       return res.status(401).json({
-        message:
-          "Invalid or expired refresh token",
+        success: false,
+        message: "Refresh token missing",
       });
     }
-  };
 
+    let decoded;
+
+    try {
+      decoded = jwt.verify(
+        oldRefreshToken,
+        process.env.JWT_REFRESH_SECRET
+      );
+    } catch (err) {
+      clearRefreshCookie(res);
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+    }
+
+    if (!decoded?.id || decoded.type !== "mechanic") {
+      clearRefreshCookie(res);
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid refresh token",
+      });
+    }
+
+    const mechanic = await Mechanic.findOne({
+      _id: decoded.id,
+      refreshToken: oldRefreshToken,
+      isVerified: true,
+    });
+
+    if (!mechanic) {
+      clearRefreshCookie(res);
+
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token is not valid",
+      });
+    }
+
+    const newAccessToken = createAccessToken(mechanic._id);
+    const newRefreshToken = createRefreshToken(mechanic._id);
+
+    mechanic.refreshToken = newRefreshToken;
+
+    await mechanic.save({
+      validateBeforeSave: false,
+    });
+
+    setRefreshCookie(res, newRefreshToken);
+
+    return res.status(200).json({
+      success: true,
+      accessToken: newAccessToken,
+    });
+  } catch (err) {
+    console.error("refreshMechanicToken error:", err);
+
+    clearRefreshCookie(res);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to refresh token",
+    });
+  }
+};
 // =========================================================
 // GET MECHANIC PROFILE
 // =========================================================
 
-export const getMechanicProfile =
-  async (req, res) => {
-    try {
-      const mechanicId =
-        req.mechanic.id;
+export const getMechanicProfile = async (
+  req,
+  res
+) => {
+  try {
+    const mechanicId = getMechanicId(req);
 
-      const mechanic =
-        await Mechanic.findById(
-          mechanicId
-        ).select(
-          "-password -refreshToken -otpHash -otpExpire"
-        );
-
-      if (!mechanic) {
-        return res.status(404).json({
-          message:
-            "Mechanic not found",
-        });
-      }
-
-      return res.json({
-        success: true,
-        mechanic,
-      });
-    } catch (err) {
-      console.error(
-        "getMechanicProfile error:",
-        err
-      );
-
-      return res.status(500).json({
-        message:
-          "Failed to load mechanic profile",
+    if (!mechanicId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
       });
     }
-  };
 
-  // =========================================================
+    const mechanic = await Mechanic.findById(
+      mechanicId
+    );
+
+    if (!mechanic) {
+      return res.status(404).json({
+        success: false,
+        message: "Mechanic not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      mechanic: safeMechanic(mechanic),
+    });
+  } catch (err) {
+    console.error(
+      "getMechanicProfile error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get mechanic profile",
+    });
+  }
+};
+// =========================================================
 // UPDATE MECHANIC PROFILE
 // =========================================================
 
@@ -752,115 +748,120 @@ export const updateMechanicProfile = async (
   res
 ) => {
   try {
-    const mechanicId = req.mechanic?.id;
+    const mechanicId = getMechanicId(req);
 
     if (!mechanicId) {
       return res.status(401).json({
-        message:
-          "Mechanic authentication required",
+        success: false,
+        message: "Unauthorized",
       });
     }
 
     const {
       name,
-      phone,
+      phone: rawPhone,
       gst,
       garageName,
       address,
       profilePhoto,
     } = req.body;
 
-    const mechanic =
-      await Mechanic.findById(mechanicId);
+    const mechanic = await Mechanic.findById(
+      mechanicId
+    );
 
     if (!mechanic) {
       return res.status(404).json({
+        success: false,
         message: "Mechanic not found",
       });
     }
 
-    // =====================================================
-    // EMAIL IS INTENTIONALLY NOT UPDATED
-    // =====================================================
-    // Email is permanently linked to the mechanic account.
-    // req.body.email is ignored.
-
     if (name !== undefined) {
-      mechanic.name =
-        String(name).trim();
-    }
-
-    if (phone !== undefined) {
-      const normalizedPhone =
-        normalizePhone(phone);
-
       if (
-        normalizedPhone &&
-        !/^\d{10}$/.test(
-          normalizedPhone
-        )
+        typeof name !== "string" ||
+        name.trim().length < 2
       ) {
         return res.status(400).json({
+          success: false,
+          message: "Valid name is required",
+        });
+      }
+
+      mechanic.name = name.trim();
+    }
+
+    if (rawPhone !== undefined) {
+      const phone = normalizePhone(rawPhone);
+
+      if (
+        phone &&
+        !/^\d{10}$/.test(phone)
+      ) {
+        return res.status(400).json({
+          success: false,
           message:
             "Phone number must contain 10 digits",
         });
       }
 
-      if (normalizedPhone) {
+      if (phone) {
         const existingPhone =
           await Mechanic.findOne({
-            phone: normalizedPhone,
+            phone,
             _id: {
-              $ne: mechanicId,
+              $ne: mechanic._id,
             },
+            isVerified: true,
           });
 
         if (existingPhone) {
           return res.status(400).json({
-            message:
-              "Phone already registered",
+            success: false,
+            message: "Phone already registered",
           });
         }
 
-        mechanic.phone =
-          normalizedPhone;
+        mechanic.phone = phone;
+      } else {
+        mechanic.phone = undefined;
       }
     }
 
     if (gst !== undefined) {
       mechanic.gst =
-        String(gst).trim().toUpperCase();
+        typeof gst === "string"
+          ? gst.trim()
+          : "";
     }
 
     if (garageName !== undefined) {
       mechanic.garageName =
-        String(garageName).trim();
+        typeof garageName === "string"
+          ? garageName.trim()
+          : "";
     }
 
     if (address !== undefined) {
       mechanic.address =
-        String(address).trim();
+        typeof address === "string"
+          ? address.trim()
+          : "";
     }
 
     if (profilePhoto !== undefined) {
       mechanic.profilePhoto =
-        String(profilePhoto).trim();
+        typeof profilePhoto === "string"
+          ? profilePhoto.trim()
+          : "";
     }
 
     await mechanic.save();
 
-    const updatedMechanic =
-      await Mechanic.findById(
-        mechanicId
-      ).select(
-        "-password -refreshToken -otpHash -otpExpire -resetOtpHash -resetOtpExpire"
-      );
-
-    return res.json({
+    return res.status(200).json({
       success: true,
-      message:
-        "Profile updated successfully",
-      mechanic: updatedMechanic,
+      message: "Profile updated successfully",
+      mechanic: safeMechanic(mechanic),
     });
   } catch (err) {
     console.error(
@@ -870,14 +871,14 @@ export const updateMechanicProfile = async (
 
     if (err.code === 11000) {
       return res.status(400).json({
-        message:
-          "Phone number already registered",
+        success: false,
+        message: "Phone already registered",
       });
     }
 
     return res.status(500).json({
-      message:
-        "Failed to update mechanic profile",
+      success: false,
+      message: "Failed to update profile",
     });
   }
 };
@@ -886,313 +887,281 @@ export const updateMechanicProfile = async (
 // UPDATE GARAGE LOCATION
 // =========================================================
 
-export const updateGarageLocation =
-  async (req, res) => {
-    try {
-      const mechanicId =
-        req.mechanic.id;
+export const updateGarageLocation = async (
+  req,
+  res
+) => {
+  try {
+    const mechanicId = getMechanicId(req);
 
-      const {
-        coordinates,
-      } = req.body;
-
-      if (
-        !isValidCoordinates(
-          coordinates
-        )
-      ) {
-        return res.status(400).json({
-          message:
-            "Valid coordinates required as [longitude, latitude]",
-        });
-      }
-
-      const garageLocation =
-        buildPoint(coordinates);
-
-      const mech =
-        await Mechanic.findByIdAndUpdate(
-          mechanicId,
-          {
-            $set: {
-              garageLocation,
-            },
-          },
-          {
-            new: true,
-            runValidators: true,
-          }
-        ).select(
-          "-password -refreshToken -otpHash -otpExpire"
-        );
-
-      if (!mech) {
-        return res.status(404).json({
-          message:
-            "Mechanic not found",
-        });
-      }
-
-      return res.json({
-        success: true,
-        message:
-          "Garage location saved successfully",
-        garageLocation:
-          mech.garageLocation,
-      });
-    } catch (err) {
-      console.error(
-        "updateGarageLocation error:",
-        err
-      );
-
-      return res.status(500).json({
-        message:
-          "Failed to save garage location",
+    if (!mechanicId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
       });
     }
-  };
 
-// =========================================================
-// UPDATE CURRENT / LIVE LOCATION
-// =========================================================
+    const {
+      coordinates,
+    } = req.body;
 
-export const updateCurrentLocation =
-  async (req, res) => {
-    try {
-      const mechanicId =
-        req.mechanic.id;
-
-      const {
-        coordinates,
-      } = req.body;
-
-      if (
-        !isValidCoordinates(
-          coordinates
-        )
-      ) {
-        return res.status(400).json({
-          message:
-            "Valid coordinates required as [longitude, latitude]",
-        });
-      }
-
-      const currentLocation =
-        buildPoint(coordinates);
-
-      const now = new Date();
-
-      const mech =
-        await Mechanic.findByIdAndUpdate(
-          mechanicId,
-          {
-            $set: {
-              currentLocation,
-              lastLocationUpdate: now,
-            },
-          },
-          {
-            new: true,
-            runValidators: true,
-          }
-        ).select(
-          "-password -refreshToken -otpHash -otpExpire"
-        );
-
-      if (!mech) {
-        return res.status(404).json({
-          message:
-            "Mechanic not found",
-        });
-      }
-
-      return res.json({
-        success: true,
+    if (
+      !isValidCoordinates(coordinates)
+    ) {
+      return res.status(400).json({
+        success: false,
         message:
-          "Current location updated",
-        currentLocation:
-          mech.currentLocation,
-        lastLocationUpdate:
-          mech.lastLocationUpdate,
-      });
-    } catch (err) {
-      console.error(
-        "updateCurrentLocation error:",
-        err
-      );
-
-      return res.status(500).json({
-        message:
-          "Failed to update current location",
+          "Coordinates must be [longitude, latitude]",
       });
     }
-  };
 
-// =========================================================
-// ONLINE / OFFLINE
-// =========================================================
-
-export const updateMechanicAvailability =
-  async (req, res) => {
-    try {
-      const mechanicId =
-        req.mechanic?.id;
-
-      if (!mechanicId) {
-        return res.status(401).json({
-          message:
-            "Mechanic authentication required",
-        });
-      }
-
-      const { isOnline } =
-        req.body;
-
-      if (
-        typeof isOnline !== "boolean"
-      ) {
-        return res.status(400).json({
-          message:
-            "isOnline must be true or false",
-        });
-      }
-
-      const mechanic =
-        await Mechanic.findById(
-          mechanicId
-        );
-
-      if (!mechanic) {
-        return res.status(404).json({
-          message:
-            "Mechanic not found",
-        });
-      }
-
-      // ===================================================
-      // ONLINE VALIDATION
-      // ===================================================
-
-      if (isOnline) {
-        const hasGarageLocation =
-          isValidCoordinates(
-            mechanic.garageLocation
-              ?.coordinates
-          );
-
-        if (!hasGarageLocation) {
-          return res.status(400).json({
-            message:
-              "Please save your exact garage location before going online",
-          });
-        }
-      }
-
-      mechanic.isOnline =
-        isOnline;
-
-      // Going offline should not leave
-      // an old active request locked forever.
-      // Active request itself is handled by
-      // requestController when completed/cancelled.
-      await mechanic.save();
-
-      return res.json({
-        success: true,
-
-        message: isOnline
-          ? "You are now online"
-          : "You are now offline",
-
-        mechanic: {
-          id: mechanic._id,
-          name: mechanic.name || "",
-          isOnline:
-            mechanic.isOnline,
+    const mechanic =
+      await Mechanic.findByIdAndUpdate(
+        mechanicId,
+        {
           garageLocation:
-            mechanic.garageLocation ||
-            null,
-          currentLocation:
-            mechanic.currentLocation ||
-            null,
-          lastLocationUpdate:
-            mechanic.lastLocationUpdate ||
-            null,
+            buildPoint(coordinates),
         },
-      });
-    } catch (err) {
-      console.error(
-        "updateMechanicAvailability error:",
-        err
+        {
+          new: true,
+          runValidators: true,
+        }
       );
 
-      return res.status(500).json({
-        message:
-          "Failed to update availability",
+    if (!mechanic) {
+      return res.status(404).json({
+        success: false,
+        message: "Mechanic not found",
       });
     }
-  };
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Garage location updated successfully",
+      mechanic: safeMechanic(mechanic),
+    });
+  } catch (err) {
+    console.error(
+      "updateGarageLocation error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to update garage location",
+    });
+  }
+};
+
+// =========================================================
+// UPDATE CURRENT LOCATION
+// =========================================================
+
+export const updateCurrentLocation = async (
+  req,
+  res
+) => {
+  try {
+    const mechanicId = getMechanicId(req);
+
+    if (!mechanicId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const {
+      coordinates,
+    } = req.body;
+
+    if (
+      !isValidCoordinates(coordinates)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Coordinates must be [longitude, latitude]",
+      });
+    }
+
+    const mechanic =
+      await Mechanic.findByIdAndUpdate(
+        mechanicId,
+        {
+          currentLocation:
+            buildPoint(coordinates),
+          lastLocationUpdate: new Date(),
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
+
+    if (!mechanic) {
+      return res.status(404).json({
+        success: false,
+        message: "Mechanic not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Current location updated successfully",
+      mechanic: safeMechanic(mechanic),
+    });
+  } catch (err) {
+    console.error(
+      "updateCurrentLocation error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to update current location",
+    });
+  }
+};
+// =========================================================
+// UPDATE MECHANIC AVAILABILITY
+// =========================================================
+
+export const updateMechanicAvailability = async (
+  req,
+  res
+) => {
+  try {
+    const mechanicId = getMechanicId(req);
+
+    if (!mechanicId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const {
+      isOnline,
+    } = req.body;
+
+    if (typeof isOnline !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "isOnline must be true or false",
+      });
+    }
+
+    const mechanic = await Mechanic.findById(
+      mechanicId
+    );
+
+    if (!mechanic) {
+      return res.status(404).json({
+        success: false,
+        message: "Mechanic not found",
+      });
+    }
+
+    if (isOnline) {
+      const coordinates =
+        mechanic.garageLocation?.coordinates;
+
+      if (
+        !isValidCoordinates(coordinates)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please update your garage location before going online",
+        });
+      }
+    }
+
+    mechanic.isOnline = isOnline;
+
+    await mechanic.save({
+      validateBeforeSave: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: isOnline
+        ? "Mechanic is now online"
+        : "Mechanic is now offline",
+      isOnline: mechanic.isOnline,
+    });
+  } catch (err) {
+    console.error(
+      "updateMechanicAvailability error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to update availability",
+    });
+  }
+};
 
 // =========================================================
 // LOGOUT
 // =========================================================
 
-export const logout = async (
-  req,
-  res
-) => {
+export const logout = async (req, res) => {
   try {
-    const token =
-      req.cookies?.rr_refresh;
+    const mechanicId = getMechanicId(req);
 
-    if (token) {
-      const decoded =
-        jwt.decode(token);
-
-      if (decoded?.id) {
-        await Mechanic.findByIdAndUpdate(
-          decoded.id,
-          {
-            $unset: {
-              refreshToken: "",
-            },
-
-            $set: {
-              isOnline: false,
-            },
-          }
-        );
-      }
+    if (mechanicId) {
+      await Mechanic.findByIdAndUpdate(
+        mechanicId,
+        {
+          $unset: {
+            refreshToken: 1,
+          },
+          isOnline: false,
+        }
+      );
     }
 
-    res.clearCookie(
-      "rr_refresh"
-    );
+    clearRefreshCookie(res);
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      message: "Logged out",
+      message: "Logout successful",
     });
   } catch (err) {
-    console.error(
-      "logout error:",
-      err
-    );
+    console.error("logout error:", err);
+
+    clearRefreshCookie(res);
 
     return res.status(500).json({
+      success: false,
       message: "Logout failed",
     });
   }
 };
 
-// =====================================================
-// FIND NEARBY MECHANICS
-// =====================================================
+// =========================================================
+// GET NEARBY MECHANICS
+// =========================================================
 
-export const getNearbyMechanics = async (req, res) => {
+export const getNearbyMechanics = async (
+  req,
+  res
+) => {
   try {
-    const { lat, lng, radius = 50 } = req.query;
+    const {
+      lat,
+      lng,
+      radius = 50,
+    } = req.query;
 
     const latitude = Number(lat);
     const longitude = Number(lng);
@@ -1204,7 +1173,8 @@ export const getNearbyMechanics = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "Valid latitude and longitude are required",
+        message:
+          "Valid latitude and longitude are required",
       });
     }
 
@@ -1216,16 +1186,21 @@ export const getNearbyMechanics = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid location coordinates",
+        message: "Invalid coordinates",
       });
     }
 
-    const safeRadius =
-      Number.isFinite(maxRadius) &&
-      maxRadius > 0 &&
-      maxRadius <= 200
-        ? maxRadius
-        : 50;
+    if (
+      !Number.isFinite(maxRadius) ||
+      maxRadius <= 0 ||
+      maxRadius > 200
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Radius must be between 1 and 200 kilometers",
+      });
+    }
 
     const mechanics = await Mechanic.find({
       isVerified: true,
@@ -1242,31 +1217,27 @@ export const getNearbyMechanics = async (req, res) => {
           },
         },
       ],
-    }).select(
-      "name email phone garageName address profilePhoto isVerified isOnline currentLocation garageLocation"
-    );
+    });
 
     const toRadians = (value) =>
       (value * Math.PI) / 180;
 
     const calculateDistance = (
       lat1,
-      lon1,
+      lng1,
       lat2,
-      lon2
+      lng2
     ) => {
-      const earthRadiusKm = 6371;
+      const earthRadius = 6371;
 
       const dLat = toRadians(lat2 - lat1);
-      const dLon = toRadians(lon2 - lon1);
+      const dLng = toRadians(lng2 - lng1);
 
       const a =
-        Math.sin(dLat / 2) *
-          Math.sin(dLat / 2) +
+        Math.sin(dLat / 2) ** 2 +
         Math.cos(toRadians(lat1)) *
           Math.cos(toRadians(lat2)) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
+          Math.sin(dLng / 2) ** 2;
 
       const c =
         2 *
@@ -1275,131 +1246,106 @@ export const getNearbyMechanics = async (req, res) => {
           Math.sqrt(1 - a)
         );
 
-      return earthRadiusKm * c;
+      return earthRadius * c;
     };
-    const LIVE_LOCATION_MAX_AGE =
-  2 * 60 * 1000;
 
-const liveLocationLimit =
-  Date.now() -
-  LIVE_LOCATION_MAX_AGE;
+    const now = Date.now();
+    const liveLocationLimit = 2 * 60 * 1000;
 
-    const nearbyMechanics = mechanics
-      .map((mechanic) => {
-        let coordinates = null;
-// Prefer LIVE location only when it is fresh
-const hasFreshLiveLocation =
-  Array.isArray(
-    mechanic.currentLocation?.coordinates
-  ) &&
-  mechanic.currentLocation.coordinates.length ===
-    2 &&
-  mechanic.lastLocationUpdate &&
-  new Date(
-    mechanic.lastLocationUpdate
-  ).getTime() >=
-    liveLocationLimit;
+    const nearbyMechanics = [];
 
-if (hasFreshLiveLocation) {
-  coordinates =
-    mechanic.currentLocation.coordinates;
-}
+    for (const mechanic of mechanics) {
+      let coordinates = null;
+      let locationType = "garage";
 
-        // Otherwise use permanent garage location
-        if (
-          !coordinates &&
-          Array.isArray(
-            mechanic.garageLocation?.coordinates
-          ) &&
-          mechanic.garageLocation.coordinates.length ===
-            2
-        ) {
-          coordinates =
-            mechanic.garageLocation.coordinates;
-        }
+      const currentCoordinates =
+        mechanic.currentLocation?.coordinates;
 
-        if (!coordinates) {
-          return null;
-        }
+      const garageCoordinates =
+        mechanic.garageLocation?.coordinates;
 
-        const mechanicLongitude =
-          Number(coordinates[0]);
+      const lastLocationUpdate =
+        mechanic.lastLocationUpdate
+          ? new Date(
+              mechanic.lastLocationUpdate
+            ).getTime()
+          : 0;
 
-        const mechanicLatitude =
-          Number(coordinates[1]);
+      const isLiveLocationFresh =
+        lastLocationUpdate > 0 &&
+        now - lastLocationUpdate <=
+          liveLocationLimit;
 
-        if (
-          !Number.isFinite(
-            mechanicLongitude
-          ) ||
-          !Number.isFinite(
-            mechanicLatitude
-          )
-        ) {
-          return null;
-        }
+      if (
+        isLiveLocationFresh &&
+        isValidCoordinates(currentCoordinates)
+      ) {
+        coordinates = currentCoordinates;
+        locationType = "current";
+      } else if (
+        isValidCoordinates(garageCoordinates)
+      ) {
+        coordinates = garageCoordinates;
+        locationType = "garage";
+      }
 
-        const distance = calculateDistance(
-          latitude,
-          longitude,
-          mechanicLatitude,
-          mechanicLongitude
-        );
+      if (!coordinates) {
+        continue;
+      }
 
-        return {
-          id: mechanic._id,
-          name:
-            mechanic.garageName?.trim() ||
-            mechanic.name?.trim() ||
-            "Roadside Mechanic",
-          mechanicName:
-            mechanic.name?.trim() ||
-            "Mechanic",
-          email: mechanic.email || "",
-          phone: mechanic.phone || "",
-          address:
-            mechanic.address?.trim() ||
-            "Location available",
-          profilePhoto:
-            mechanic.profilePhoto || "",
-          available: mechanic.isOnline === true,
-          verified:
-            mechanic.isVerified === true,
-          distance: Number(
-            distance.toFixed(1)
-          ),
-          location: {
-            lat: mechanicLatitude,
-            lng: mechanicLongitude,
-          },
-        };
-      })
-      .filter(Boolean)
-      .filter(
-        (mechanic) =>
-          mechanic.distance <= safeRadius
-      )
-      .sort(
-        (a, b) =>
-          a.distance - b.distance
+      const mechanicLongitude =
+        Number(coordinates[0]);
+
+      const mechanicLatitude =
+        Number(coordinates[1]);
+
+      const distance = calculateDistance(
+        latitude,
+        longitude,
+        mechanicLatitude,
+        mechanicLongitude
       );
 
-    return res.json({
+      if (distance <= maxRadius) {
+        nearbyMechanics.push({
+          id: mechanic._id,
+          name: mechanic.name,
+          phone: mechanic.phone,
+          garageName: mechanic.garageName,
+          address: mechanic.address,
+          profilePhoto: mechanic.profilePhoto,
+          isOnline: mechanic.isOnline,
+          locationType,
+          coordinates: [
+            mechanicLongitude,
+            mechanicLatitude,
+          ],
+          distance: Number(
+            distance.toFixed(2)
+          ),
+        });
+      }
+    }
+
+    nearbyMechanics.sort(
+      (a, b) => a.distance - b.distance
+    );
+
+    return res.status(200).json({
       success: true,
       count: nearbyMechanics.length,
-      radius: safeRadius,
       mechanics: nearbyMechanics,
     });
-  } catch (error) {
+  } catch (err) {
     console.error(
       "getNearbyMechanics error:",
-      error
+      err
     );
 
     return res.status(500).json({
       success: false,
       message:
-        "Failed to find nearby mechanics",
+        "Failed to fetch nearby mechanics",
     });
   }
 };

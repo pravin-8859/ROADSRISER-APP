@@ -50,6 +50,7 @@ router.post(
 
 router.post(
   "/verify-signup-otp",
+  otpLimiter,
   verifySignupOtp
 );
 

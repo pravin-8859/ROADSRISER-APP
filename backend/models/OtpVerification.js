@@ -31,9 +31,11 @@ const otpVerificationSchema = new mongoose.Schema(
     },
 
     attempts: {
-      type: Number,
-      default: 0,
-    },
+  type: Number,
+  default: 0,
+  min: 0,
+  max: 5,
+},
 
     lastSentAt: {
       type: Date,

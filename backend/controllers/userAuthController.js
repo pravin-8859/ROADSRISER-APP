@@ -457,13 +457,9 @@ export const registerUser = async (req, res) => {
 // =====================================================
 // LOGIN
 // =====================================================
-
 export const loginUser = async (req, res) => {
   try {
-    const {
-      email,
-      password,
-    } = req.body;
+    const { email, password } = req.body;
 
     if (!email?.trim() || !password) {
       return res.status(400).json({
@@ -477,9 +473,10 @@ export const loginUser = async (req, res) => {
       email: cleanEmail,
     });
 
+    // Do not reveal whether the email exists
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
+      return res.status(401).json({
+        message: "Invalid email or password",
       });
     }
 
@@ -490,7 +487,15 @@ export const loginUser = async (req, res) => {
 
     if (!isMatch) {
       return res.status(401).json({
-        message: "Incorrect password",
+        message: "Invalid email or password",
+      });
+    }
+
+    // Email must be verified
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        message:
+          "Please verify your email before logging in.",
       });
     }
 
@@ -529,7 +534,7 @@ export const loginUser = async (req, res) => {
     res.cookie("rr_user_refresh", refreshToken, {
       httpOnly: true,
       sameSite: "lax",
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -554,7 +559,6 @@ export const loginUser = async (req, res) => {
     });
   }
 };
-
 // =====================================================
 // REFRESH USER TOKEN
 // =====================================================
@@ -589,10 +593,14 @@ export const refreshUserToken = async (req, res) => {
     });
 
     if (!user) {
+      res.clearCookie("rr_user_refresh");
+
       return res.status(401).json({
         message: "Refresh token is no longer valid",
       });
     }
+
+    // ================= NEW ACCESS TOKEN =================
 
     const accessToken = jwt.sign(
       {
@@ -605,6 +613,32 @@ export const refreshUserToken = async (req, res) => {
       }
     );
 
+    // ================= ROTATE REFRESH TOKEN =================
+
+    const newRefreshToken = jwt.sign(
+      {
+        id: String(user._id),
+        type: "user",
+      },
+      process.env.JWT_REFRESH_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    user.refreshToken = newRefreshToken;
+
+    await user.save();
+
+    // ================= NEW COOKIE =================
+
+    res.cookie("rr_user_refresh", newRefreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     return res.json({
       success: true,
       accessToken,
@@ -614,6 +648,8 @@ export const refreshUserToken = async (req, res) => {
       "refreshUserToken error:",
       err.message
     );
+
+    res.clearCookie("rr_user_refresh");
 
     return res.status(401).json({
       message: "Invalid or expired refresh token",
@@ -642,7 +678,11 @@ export const logoutUser = async (req, res) => {
       );
     }
 
-    res.clearCookie("rr_user_refresh");
+    res.clearCookie("rr_user_refresh", {
+  httpOnly: true,
+  sameSite: "lax",
+  secure: process.env.NODE_ENV === "production",
+});
 
     return res.json({
       success: true,
