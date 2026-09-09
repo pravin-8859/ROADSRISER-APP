@@ -1,68 +1,65 @@
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
 
 dotenv.config();
 
 export const sendEmail = async ({ to, subject, html }) => {
   try {
-    const smtpUser = process.env.SMTP_USER?.trim();
-    const smtpPass = process.env.SMTP_PASS?.trim();
-    const smtpHost =
-      process.env.SMTP_HOST?.trim() || "smtp.gmail.com";
-    const smtpPort = Number(process.env.SMTP_PORT) || 465;
+    const apiKey = process.env.BREVO_API_KEY?.trim();
+    const senderEmail = process.env.BREVO_SENDER_EMAIL?.trim();
+    const senderName =
+      process.env.BREVO_SENDER_NAME?.trim() || "RoadsRiser";
 
-    const smtpSecure =
-      process.env.SMTP_SECURE !== undefined
-        ? String(process.env.SMTP_SECURE).trim().toLowerCase() === "true"
-        : smtpPort === 465;
-
-    console.log("📧 SMTP config:", {
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      user: smtpUser,
-      passExists: Boolean(smtpPass),
-    });
-
-    if (!smtpUser || !smtpPass) {
-      console.error("❌ SMTP_USER or SMTP_PASS is missing");
+    if (!apiKey) {
+      console.error("❌ BREVO_API_KEY is missing");
       return false;
     }
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
+    if (!senderEmail) {
+      console.error("❌ BREVO_SENDER_EMAIL is missing");
+      return false;
+    }
 
-    await transporter.verify();
+    const response = await fetch(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "api-key": apiKey,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: {
+            name: senderName,
+            email: senderEmail,
+          },
+          to: [
+            {
+              email: to,
+            },
+          ],
+          subject,
+          htmlContent: html,
+        }),
+      }
+    );
 
-    console.log("✅ SMTP connection verified");
+    const responseData = await response.text();
 
-    const info = await transporter.sendMail({
-      from: `"RoadsRiser" <${smtpUser}>`,
-      to,
-      subject,
-      html,
-    });
+    if (!response.ok) {
+      console.error("❌ Brevo email error:", {
+        status: response.status,
+        response: responseData,
+      });
 
-    console.log("✅ Email sent successfully");
-    console.log("📨 Message ID:", info.messageId);
-    console.log("📬 Accepted:", info.accepted);
-    console.log("❌ Rejected:", info.rejected);
+      return false;
+    }
+
+    console.log("✅ Email sent successfully to:", to);
 
     return true;
   } catch (error) {
-    console.error("❌ Email sending error:", {
-      message: error.message,
-      code: error.code,
-      response: error.response,
-      responseCode: error.responseCode,
-    });
+    console.error("❌ Email API error:", error.message);
 
     return false;
   }
