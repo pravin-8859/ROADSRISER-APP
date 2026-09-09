@@ -1,14 +1,21 @@
-# Ignore dependencies
+# Dependencies
 node_modules/
 
-# Ignore environment variables
+# Environment variables
 .env
+.env.*
+!.env.example
 
-# Ignore logs
+# Build files
+dist/
+build/
+
+# Logs
 *.log
 
-# Ignore system files
+# System files
 .DS_Store
 Thumbs.db
 
+# VS Code history
 .history/
