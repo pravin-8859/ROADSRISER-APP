@@ -16,7 +16,7 @@ import {
   FiX,
 } from "react-icons/fi";
 
-import tiremech from "../assets/tiremech.jpg";
+import pk from "../assets/pk.jpg";
 import findnearbymech from "../assets/findnearbymech.jpg";
 import realtimeTracking from "../assets/realtimetracking.jpg";
 import help24hr from "../assets/24hourhelp.jpg";
@@ -25,6 +25,7 @@ import battery from "../assets/battery.png";
 import petrol from "../assets/petrol.png";
 import tire from "../assets/tire.png";
 import engineOil from "../assets/engine-oil.png";
+import tiremech from "../assets/tiremech.jpg";
 
 const heroSlides = [
   {
@@ -65,7 +66,7 @@ const services = [
   {
     title: "Flat Tyre",
     description: "Quick tyre repair or replacement when you need it most.",
-    image: tire,
+    image: tiremech,
     icon: FiTool,
   },
   {
@@ -91,14 +92,14 @@ const services = [
     title: "Towing",
     description:
       "Reliable towing assistance when your vehicle cannot move.",
-    image: tiremech,
+    image: help24hr,
     icon: FiTruck,
   },
   {
     title: "Emergency Help",
     description:
       "Get connected with roadside assistance around you.",
-    image: help24hr,
+    image: pk,
     icon: FiNavigation,
   },
 ];

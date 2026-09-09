@@ -7,7 +7,7 @@ import RequestHelp from "./RequestHelp";
 import RequestActive from "./RequestActive";
 import RequestHistory from "./RequestHistory";
 import UserProfile from "./UserProfile";
-
+import logo from "../../assets/logo.png";
 import {
   FaHome,
   FaPlusCircle,
@@ -267,9 +267,90 @@ export default function DashboardUser() {
 
         <div className="max-w-[1450px] mx-auto px-5 lg:px-6 h-[76px] flex items-center justify-between">
 
+
           {/* BRAND */}
 
-          <button
+          {/* BRAND */}
+<button
+  onClick={handleBackToWebsite}
+  className="flex items-center gap-3 group"
+>
+  {/* Logo Container */}
+  <div
+    className="
+      relative
+      w-11 h-11
+      rounded-xl
+      flex items-center justify-center
+      bg-gradient-to-br from-white via-gray-100 to-gray-300
+      border border-white/20
+      shadow-[0_8px_25px_rgba(0,0,0,0.25)]
+      transition-all duration-300
+      group-hover:scale-110
+      group-hover:-translate-y-0.5
+      group-hover:shadow-[0_12px_35px_rgba(59,130,246,0.30)]
+    "
+  >
+    {/* Soft Glow */}
+    <div
+      className="
+        absolute
+        inset-0
+        rounded-xl
+        bg-blue-500/10
+        blur-md
+        opacity-0
+        group-hover:opacity-100
+        transition-opacity duration-300
+      "
+    />
+
+    {/* Logo */}
+    <img
+      src={logo}
+      alt="RoadsRiser"
+      className="
+        relative
+        z-10
+        w-9 h-9
+        object-contain
+        drop-shadow-[0_3px_5px_rgba(0,0,0,0.25)]
+        transition-transform duration-300
+        group-hover:scale-105
+      "
+    />
+  </div>
+
+  {/* Brand Name */}
+  <div className="text-left leading-none">
+    <div
+      className="
+        text-xl
+        font-extrabold
+        tracking-tight
+        text-white
+        transition-all duration-300
+        group-hover:text-blue-50
+      "
+    >
+      Roads<span className="text-blue-500">Riser</span>
+    </div>
+
+    <div
+      className="
+        text-[9px]
+        uppercase
+        tracking-[0.18em]
+        text-gray-400
+        mt-1.5
+      "
+    >
+      User Dashboard
+    </div>
+  </div>
+</button>
+
+          {/* <button
             onClick={handleBackToWebsite}
             className="flex items-center gap-3 group"
           >
@@ -286,7 +367,7 @@ export default function DashboardUser() {
                 USER DASHBOARD
               </p>
             </div>
-          </button>
+          </button> */}
 
           {/* RIGHT ACTIONS */}
 

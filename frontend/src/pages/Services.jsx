@@ -14,12 +14,13 @@ import {
   FiTruck,
   FiZap,
 } from "react-icons/fi";
-
+import battery from "../assets/battery.png";
 import tireImg from "../assets/tiremech.jpg";
 import nearbyImg from "../assets/findnearbymech.jpg";
 import trackingImg from "../assets/realtimetracking.jpg";
 import paymentImg from "../assets/verifiedsecurepayment.jpg";
-
+import help24hr from "../assets/24hourhelp.jpg";
+import engineOil from "../assets/engine-oil.png";
 export default function Services() {
   const services = [
     {
@@ -36,7 +37,7 @@ export default function Services() {
       description:
         "When your vehicle cannot move, connect with towing assistance and get it to a nearby garage.",
       tag: "Emergency",
-      image: nearbyImg,
+      image: help24hr,
     },
     {
       icon: FiDroplet,
@@ -44,7 +45,7 @@ export default function Services() {
       description:
         "Ran out of fuel? Request nearby fuel assistance and get back on the road faster.",
       tag: "24/7",
-      image: paymentImg,
+      image: engineOil,
     },
     {
       icon: FiBatteryCharging,
@@ -52,7 +53,7 @@ export default function Services() {
       description:
         "Dead battery? Get jump-start assistance or battery-related roadside support.",
       tag: "Quick Help",
-      image: trackingImg,
+      image: battery,
     },
     {
       icon: FiZap,

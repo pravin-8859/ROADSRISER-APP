@@ -8,8 +8,15 @@ export const loginUser = async (email, password) => {
     password,
   });
 
-  localStorage.setItem("token", res.data.accessToken);
-  localStorage.setItem("role", "user");
+  const token =
+    res.data?.accessToken ||
+    res.data?.token ||
+    res.data?.access;
+
+  if (token) {
+    localStorage.setItem("accessToken", token);
+    localStorage.setItem("role", "user");
+  }
 
   return res.data;
 };
@@ -49,13 +56,12 @@ export const cancelUserRequestApi = async (requestId) => {
 };
 
 // ================= NEARBY MECHANICS =================
-
 export const getNearbyMechanicsApi = async ({
   lat,
   lng,
-  radius = 10,
+  radius = 50,
 }) => {
-  const res = await API.get("/users/mechanics/nearby", {
+  const response = await API.get("/users/mechanics/nearby", {
     params: {
       lat,
       lng,
@@ -63,9 +69,8 @@ export const getNearbyMechanicsApi = async ({
     },
   });
 
-  return res.data;
+  return response.data;
 };
-
 // ================= NOTIFICATIONS =================
 
 export const getNotificationsApi = async () => {

@@ -59,29 +59,29 @@ export default function Footer() {
   const socials = [
     {
       icon: <FaFacebookF />,
-      link: "https://www.facebook.com/",
+      link: "https://www.facebook.com/share/1FaUBUAXFc/",
       label: "Facebook",
     },
     {
       icon: <FaInstagram />,
-      link: "https://www.instagram.com/",
+      link: "https://www.instagram.com/pravinn._07?igsh=NHN6NTV6Zjh5ZW40",
       label: "Instagram",
     },
     {
       icon: <FaLinkedinIn />,
-      link: "https://www.linkedin.com/",
+      link: "https://www.linkedin.com/in/pravin9389",
       label: "LinkedIn",
     },
-    {
-      icon: <FaYoutube />,
-      link: "https://www.youtube.com/",
-      label: "YouTube",
-    },
-    {
-      icon: <FaWhatsapp />,
-      link: "https://wa.me/919389867581",
-      label: "WhatsApp",
-    },
+    // {
+    //   icon: <FaYoutube />,
+    //   link: "https://www.youtube.com/",
+    //   label: "YouTube",
+    // },
+    // {
+    //   icon: <FaWhatsapp />,
+    //   link: "https://wa.me/9193898675",
+    //   label: "WhatsApp",
+    // },
   ];
 
   return (
@@ -337,10 +337,10 @@ export default function Footer() {
                   </p>
 
                   <a
-                    href="tel:+919389867581"
+                    href="tel:+919389867XXX"
                     className="text-sm text-gray-300 hover:text-blue-400 transition"
                   >
-                    +91 9389867581
+                    +91 9389XXXXXX
                   </a>
                 </div>
               </div>

@@ -60,7 +60,7 @@ export default function Contact() {
     {
       icon: FiPhone,
       title: "Call Us",
-      value: "+91 9389867581",
+      value: "+91 938986XXXX",
       description: "Available for assistance",
     },
     {
@@ -419,7 +419,7 @@ export default function Contact() {
                   <input
                     type="tel"
                     name="phone"
-                    placeholder="+91 98765 43210"
+                    placeholder="+91 98765 XXXXX"
                     value={formData.phone}
                     onChange={handleChange}
                     required
@@ -628,7 +628,7 @@ export default function Contact() {
             </Link>
 
             <a
-              href="tel:+919389867581"
+              href="tel:+919389867XXX"
               className="inline-flex items-center justify-center gap-3 rounded-full border border-white/20 bg-white/10 px-8 py-4 font-bold backdrop-blur-xl transition hover:bg-white/20"
             >
               <FiPhone />

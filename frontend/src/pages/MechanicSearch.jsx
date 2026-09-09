@@ -32,8 +32,8 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
-import { getNearbyMechanics } from "../api/mechanicApi";
-
+//import { getNearbyMechanics } from "../api/mechanicApi";
+import { getNearbyMechanicsApi } from "../api/userApi";
 
 // =====================================================
 // FIX LEAFLET DEFAULT MARKER ICON
@@ -165,140 +165,132 @@ export default function MechanicSearch() {
   // =====================================================
   // LOAD MECHANICS
   // =====================================================
+const loadMechanics = (latitude, longitude) => {
+  if (
+    latitude === undefined ||
+    latitude === null ||
+    longitude === undefined ||
+    longitude === null
+  ) {
+    setMechanics([]);
+    setError("Valid latitude and longitude are required.");
+    setLoading(false);
+    return;
+  }
 
-  const loadMechanics = (
-    latitude,
-    longitude
-  ) => {
-    setLoading(true);
-    setError("");
+  setLoading(true);
+  setError("");
 
-    getNearbyMechanics({
-      latitude,
-      longitude,
-      radius: 50,
+  getNearbyMechanicsApi({
+    lat: Number(latitude),
+    lng: Number(longitude),
+    radius: 50,
+  })
+    .then((data) => {
+      if (!data?.success) {
+        throw new Error(
+          data?.message || "Unable to find mechanics"
+        );
+      }
+
+      setMechanics(
+        Array.isArray(data.mechanics)
+          ? data.mechanics
+          : []
+      );
     })
-      .then((response) => {
-        const data =
-          response?.data;
+    .catch((err) => {
+      console.error("Nearby mechanics error:", err);
 
-        if (!data?.success) {
-          throw new Error(
-            data?.message ||
-              "Unable to find mechanics"
-          );
-        }
+      setMechanics([]);
 
-        setMechanics(
-          Array.isArray(
-            data.mechanics
-          )
-            ? data.mechanics
-            : []
-        );
-      })
-      .catch((err) => {
-        console.error(
-          "Nearby mechanics error:",
-          err
-        );
-
-        setMechanics([]);
-
-        setError(
-          err?.response?.data?.message ||
-            err?.message ||
-            "Unable to find nearby mechanics"
-        );
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
-
-
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to find nearby mechanics"
+      );
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+};
   // =====================================================
   // GET USER LOCATION
   // =====================================================
+const getUserLocation = () => {
+  if (!navigator.geolocation) {
+    setError("Location is not supported by your browser.");
+    setLoading(false);
+    return;
+  }
 
-  const getUserLocation = () => {
-    if (!navigator.geolocation) {
-      setError(
-        "Location is not supported by your browser."
-      );
+  setLocationLoading(true);
+  setLoading(true);
+  setError("");
 
-      setLoading(false);
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
 
-      return;
-    }
-
-    setLocationLoading(true);
-    setError("");
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const latitude =
-          position.coords.latitude;
-
-        const longitude =
-          position.coords.longitude;
-
-        const userLocation = {
-          latitude,
-          longitude,
-        };
-
-        setLocation(
-          userLocation
-        );
-
-        setLocationLoading(false);
-
-        loadMechanics(
-          latitude,
-          longitude
-        );
-      },
-
-      (geoError) => {
-        console.error(
-          "Location error:",
-          geoError
-        );
-
+      if (
+        typeof latitude !== "number" ||
+        typeof longitude !== "number" ||
+        Number.isNaN(latitude) ||
+        Number.isNaN(longitude)
+      ) {
+        setError("Invalid location received.");
         setLocationLoading(false);
         setLoading(false);
-
-        if (
-          geoError.code ===
-          geoError.PERMISSION_DENIED
-        ) {
-          setError(
-            "Location permission denied. Please allow location access."
-          );
-        } else if (
-          geoError.code ===
-          geoError.POSITION_UNAVAILABLE
-        ) {
-          setError(
-            "Your location is currently unavailable."
-          );
-        } else {
-          setError(
-            "Unable to get your location."
-          );
-        }
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
+        return;
       }
-    );
-  };
 
+      const userLocation = {
+        latitude,
+        longitude,
+      };
 
+      setLocation(userLocation);
+      setLocationLoading(false);
+
+      loadMechanics(latitude, longitude);
+    },
+
+    (geoError) => {
+      console.error("Location error:", geoError);
+
+      setLocationLoading(false);
+      setLoading(false);
+
+      if (
+        geoError.code ===
+        GeolocationPositionError.PERMISSION_DENIED
+      ) {
+        setError(
+          "Location permission denied. Please allow location access."
+        );
+      } else if (
+        geoError.code ===
+        GeolocationPositionError.POSITION_UNAVAILABLE
+      ) {
+        setError("Your location is currently unavailable.");
+      } else if (
+        geoError.code ===
+        GeolocationPositionError.TIMEOUT
+      ) {
+        setError("Location request timed out. Please try again.");
+      } else {
+        setError("Unable to get your location.");
+      }
+    },
+
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 60000,
+    }
+  );
+};
   // =====================================================
   // INITIAL LOCATION
   // =====================================================

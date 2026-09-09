@@ -2,6 +2,7 @@
 //import GarageLocationPicker from "./GarageLocationPicker";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import logo from "../assets/logo.png";
 import {
   FaHome,
   FaInbox,
@@ -930,25 +931,84 @@ const cancelRequest = async (id) => {
         <div className="max-w-[1500px] mx-auto px-4 md:px-6 h-[76px] flex items-center justify-between">
 
           {/* BRAND */}
+<button
+  onClick={handleBackToWebsite}
+  className="flex items-center gap-3 group"
+>
+  {/* Logo Container */}
+  <div
+    className="
+      relative
+      w-11 h-11
+      rounded-xl
+      flex items-center justify-center
+      bg-gradient-to-br from-white via-gray-100 to-gray-300
+      border border-white/20
+      shadow-[0_8px_25px_rgba(0,0,0,0.25)]
+      transition-all duration-300
+      group-hover:scale-110
+      group-hover:-translate-y-0.5
+      group-hover:shadow-[0_12px_35px_rgba(59,130,246,0.30)]
+    "
+  >
+    {/* Soft Glow */}
+    <div
+      className="
+        absolute
+        inset-0
+        rounded-xl
+        bg-blue-500/10
+        blur-md
+        opacity-0
+        group-hover:opacity-100
+        transition-opacity duration-300
+      "
+    />
 
-          <button
-            onClick={handleBackToWebsite}
-            className="flex items-center gap-3 group"
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-500 flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition">
-              <FaTools />
-            </div>
+    {/* Logo */}
+    <img
+      src={logo}
+      alt="RoadsRiser"
+      className="
+        relative
+        z-10
+        w-9 h-9
+        object-contain
+        drop-shadow-[0_3px_5px_rgba(0,0,0,0.25)]
+        transition-transform duration-300
+        group-hover:scale-105
+      "
+    />
+  </div>
 
-            <div className="text-left">
-              <div className="font-bold text-base">
-                RoadsRiser
-              </div>
+  {/* Brand Name */}
+  <div className="text-left leading-none">
+    <div
+      className="
+        text-xl
+        font-extrabold
+        tracking-tight
+        text-white
+        transition-all duration-300
+        group-hover:text-blue-50
+      "
+    >
+      Roads<span className="text-blue-500">Riser</span>
+    </div>
 
-              <div className="text-[10px] text-gray-500 tracking-widest">
-                MECHANIC DASHBOARD
-              </div>
-            </div>
-          </button>
+    <div
+      className="
+        text-[9px]
+        uppercase
+        tracking-[0.18em]
+        text-gray-400
+        mt-1.5
+      "
+    >
+      Mechanic Dashboard
+    </div>
+  </div>
+</button>
 
           {/* RIGHT ACTIONS */}
 

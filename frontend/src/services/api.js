@@ -34,18 +34,19 @@ const processQueue = (
 
 API.interceptors.request.use(
   (config) => {
-    const token =
-      localStorage.getItem("token");
+    const token = localStorage.getItem("token");
+
+    console.log("API URL:", config.url);
+    console.log("Token present:", !!token);
+    console.log("Role:", localStorage.getItem("role"));
 
     if (token) {
-      config.headers.Authorization =
-        `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;
   },
-  (error) =>
-    Promise.reject(error)
+  (error) => Promise.reject(error)
 );
 
 // =====================================================

@@ -530,7 +530,7 @@ export default function Shop() {
               </Link>
 
               <a
-                href="tel:+919389867581"
+                href="tel:+91938986XXXX"
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-7 py-3.5 font-bold text-white transition hover:bg-white/20"
               >
                 <FiPhone />
@@ -811,7 +811,7 @@ function ComingSoonModal({ product, onClose }) {
             </button>
 
             <a
-              href="tel:+919389867581"
+              href="tel:+91938986XXXX"
               className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-bold text-white transition hover:bg-blue-500"
             >
               <FiPhone />
