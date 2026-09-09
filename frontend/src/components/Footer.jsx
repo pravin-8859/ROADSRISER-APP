@@ -359,7 +359,7 @@ export default function Footer() {
                     href="mailto:support.roadsriser@gmail.com"
                     className="text-sm text-gray-300 hover:text-blue-400 transition break-all"
                   >
-                    support.roadsriser@gmail.com.com
+                    support.roadsriser@gmail.com
                   </a>
                 </div>
               </div>

@@ -80,7 +80,7 @@ const handleSubmit = async (e) => {
     {
       icon: FiMail,
       title: "Email Us",
-      value: "support.roadsriser@gmail.com.com",
+      value: "support.roadsriser@gmail.com",
       description: "We'll respond as soon as possible",
     },
     {
