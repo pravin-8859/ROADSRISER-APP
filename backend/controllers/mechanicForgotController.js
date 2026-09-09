@@ -43,6 +43,7 @@ export const sendMechanicResetOtp = async (req, res) => {
     const mechanic = await Mechanic.findOne({
       email,
     });
+    
 
     // Do not reveal whether account exists
     if (!mechanic || !mechanic.isVerified) {
@@ -142,6 +143,7 @@ export const verifyMechanicResetOtp = async (
     const mechanic = await Mechanic.findOne({
       email,
     });
+    
 
     if (
       !mechanic ||
