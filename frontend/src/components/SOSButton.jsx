@@ -24,18 +24,21 @@ export default function SOSButton() {
       navigator.geolocation.getCurrentPosition(async (pos) => {
         const { latitude, longitude } = pos.coords;
 
-        const response = await fetch("http://localhost:5000/api/report/sos", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({
-            latitude,
-            longitude,
-            type: "Emergency SOS",
-          }),
-        });
+        const response = await fetch(
+  `${import.meta.env.VITE_API_BASE}/report/sos`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({
+      latitude,
+      longitude,
+      type: "Emergency SOS",
+    }),
+  }
+);
 
         if (response.ok) {
           setMessage("🚨 SOS request sent successfully!");

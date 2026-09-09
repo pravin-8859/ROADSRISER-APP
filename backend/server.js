@@ -21,14 +21,14 @@ const app = express();
 // CORS
 // =====================================================
 
-const allowed = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-];
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.ADMIN_URL,
+].filter(Boolean);
 
 app.use(
   cors({
-    origin: allowed,
+    origin: allowedOrigins,
     credentials: true,
   })
 );
