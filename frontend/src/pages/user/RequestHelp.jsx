@@ -25,14 +25,46 @@ export default function RequestHelp({ onSuccess }) {
   const fileInputRef = useRef(null);
 
   const vehicleTypes = [
-    { id: "bike", name: "Bike", icon: <FaMotorcycle /> },
-    { id: "scooty", name: "Scooty", icon: <FaMotorcycle /> },
-    { id: "car", name: "Car", icon: <FaCar /> },
-    { id: "pickup", name: "Pickup", icon: <FaTruck /> },
-    { id: "truck", name: "Truck", icon: <FaTruck /> },
-    { id: "bus", name: "Bus", icon: <FaBus /> },
-    { id: "tractor", name: "Tractor", icon: <FaTractor /> },
-    { id: "erickshaw", name: "E-Rickshaw", icon: <FaCar /> },
+    {
+      id: "bike",
+      name: "Bike",
+      icon: <FaMotorcycle />,
+    },
+    {
+      id: "scooty",
+      name: "Scooty",
+      icon: <FaMotorcycle />,
+    },
+    {
+      id: "car",
+      name: "Car",
+      icon: <FaCar />,
+    },
+    {
+      id: "pickup",
+      name: "Pickup",
+      icon: <FaTruck />,
+    },
+    {
+      id: "truck",
+      name: "Truck",
+      icon: <FaTruck />,
+    },
+    {
+      id: "bus",
+      name: "Bus",
+      icon: <FaBus />,
+    },
+    {
+      id: "tractor",
+      name: "Tractor",
+      icon: <FaTractor />,
+    },
+    {
+      id: "erickshaw",
+      name: "E-Rickshaw",
+      icon: <FaCar />,
+    },
   ];
 
   const problems = [
@@ -66,6 +98,7 @@ export default function RequestHelp({ onSuccess }) {
       {
         enableHighAccuracy: true,
         timeout: 10000,
+        maximumAge: 60000,
       }
     );
   };
@@ -146,12 +179,10 @@ export default function RequestHelp({ onSuccess }) {
         problem,
         description: description.trim(),
         serviceType: problem,
-
         location: {
           type: "Point",
           coordinates: [lng, lat],
         },
-
         address: location,
       };
 
@@ -185,20 +216,19 @@ export default function RequestHelp({ onSuccess }) {
   };
 
   return (
-    <div className="space-y-8">
-
+    <div className="space-y-8 text-white">
       {/* INTRO */}
       <div className="text-center max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 text-sm font-medium mb-4">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-950/40 text-indigo-300 text-sm font-medium mb-4">
           <FaWrench />
           Instant Roadside Assistance
         </div>
 
-        <h2 className="text-2xl md:text-3xl font-bold">
+        <h2 className="text-2xl md:text-3xl font-bold text-white">
           Tell us what happened
         </h2>
 
-        <p className="text-gray-500 dark:text-gray-400 mt-2">
+        <p className="text-gray-300 mt-2">
           Select your vehicle, describe the problem and share your current
           location.
         </p>
@@ -207,12 +237,12 @@ export default function RequestHelp({ onSuccess }) {
       {/* VEHICLE */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold">
+          <h3 className="text-lg font-bold text-white">
             1. Select your vehicle
           </h3>
 
           {vehicle && (
-            <span className="text-sm text-indigo-600 dark:text-indigo-400">
+            <span className="text-sm text-indigo-400">
               Selected: {vehicle}
             </span>
           )}
@@ -224,17 +254,17 @@ export default function RequestHelp({ onSuccess }) {
               key={item.id}
               type="button"
               onClick={() => setVehicle(item.id)}
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-4 rounded-xl border transition-all text-white ${
                 vehicle === item.id
-                  ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300 shadow-md"
-                  : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 bg-gray-50 dark:bg-gray-700/40"
+                  ? "border-indigo-500 bg-indigo-950/60 text-indigo-300 shadow-md"
+                  : "border-gray-700 hover:border-indigo-500 bg-gray-800/60 text-white hover:bg-gray-700/70"
               }`}
             >
-              <div className="text-2xl flex justify-center mb-2">
+              <div className="text-2xl flex justify-center mb-2 text-white">
                 {item.icon}
               </div>
 
-              <p className="text-sm font-semibold">
+              <p className="text-sm font-semibold text-white">
                 {item.name}
               </p>
             </button>
@@ -244,7 +274,7 @@ export default function RequestHelp({ onSuccess }) {
 
       {/* PROBLEM */}
       <section>
-        <h3 className="text-lg font-bold mb-4">
+        <h3 className="text-lg font-bold mb-4 text-white">
           2. What's the problem?
         </h3>
 
@@ -256,17 +286,18 @@ export default function RequestHelp({ onSuccess }) {
               onClick={() => setProblem(item)}
               className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${
                 problem === item
-                  ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300"
-                  : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 bg-gray-50 dark:bg-gray-700/40"
+                  ? "border-indigo-500 bg-indigo-950/60 text-indigo-300"
+                  : "border-gray-700 hover:border-indigo-500 bg-gray-800/60 text-white hover:bg-gray-700/70"
               }`}
             >
-              <FaWrench />
-              <span className="font-medium text-sm">
+              <FaWrench className="text-white" />
+
+              <span className="font-medium text-sm text-white">
                 {item}
               </span>
 
               {problem === item && (
-                <FaCheckCircle className="ml-auto" />
+                <FaCheckCircle className="ml-auto text-indigo-400" />
               )}
             </button>
           ))}
@@ -275,7 +306,7 @@ export default function RequestHelp({ onSuccess }) {
 
       {/* LOCATION */}
       <section>
-        <h3 className="text-lg font-bold mb-4">
+        <h3 className="text-lg font-bold mb-4 text-white">
           3. Your location
         </h3>
 
@@ -285,7 +316,7 @@ export default function RequestHelp({ onSuccess }) {
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="Latitude, Longitude"
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 outline-none focus:border-indigo-500"
+            className="flex-1 px-4 py-3 rounded-xl border border-gray-700 bg-gray-800/60 text-white placeholder-gray-400 outline-none focus:border-indigo-500"
           />
 
           <button
@@ -298,16 +329,16 @@ export default function RequestHelp({ onSuccess }) {
           </button>
         </div>
 
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-gray-400 mt-2">
           Example: 27.4924, 77.6737
         </p>
       </section>
 
       {/* PHOTO */}
       <section>
-        <h3 className="text-lg font-bold mb-4">
+        <h3 className="text-lg font-bold mb-4 text-white">
           4. Add a photo
-          <span className="text-sm font-normal text-gray-500 ml-2">
+          <span className="text-sm font-normal text-gray-400 ml-2">
             (optional)
           </span>
         </h3>
@@ -323,7 +354,7 @@ export default function RequestHelp({ onSuccess }) {
                 );
                 fileInputRef.current?.click();
               }}
-              className="p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition flex items-center justify-center gap-2"
+              className="p-4 rounded-xl border border-dashed border-gray-600 text-white hover:border-indigo-500 hover:bg-indigo-950/30 transition flex items-center justify-center gap-2"
             >
               <FaCamera />
               Take Photo
@@ -335,7 +366,7 @@ export default function RequestHelp({ onSuccess }) {
                 fileInputRef.current?.removeAttribute("capture");
                 fileInputRef.current?.click();
               }}
-              className="p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition flex items-center justify-center gap-2"
+              className="p-4 rounded-xl border border-dashed border-gray-600 text-white hover:border-indigo-500 hover:bg-indigo-950/30 transition flex items-center justify-center gap-2"
             >
               <FaImage />
               Choose Image
@@ -346,7 +377,7 @@ export default function RequestHelp({ onSuccess }) {
             <img
               src={image.preview}
               alt="Problem preview"
-              className="w-full max-h-72 object-cover rounded-xl border border-gray-200 dark:border-gray-700"
+              className="w-full max-h-72 object-cover rounded-xl border border-gray-700"
             />
 
             <button
@@ -370,7 +401,7 @@ export default function RequestHelp({ onSuccess }) {
 
       {/* DESCRIPTION */}
       <section>
-        <h3 className="text-lg font-bold mb-4">
+        <h3 className="text-lg font-bold mb-4 text-white">
           5. Describe the issue
         </h3>
 
@@ -378,7 +409,7 @@ export default function RequestHelp({ onSuccess }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Tell the mechanic anything that may help..."
-          className="w-full min-h-32 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 outline-none focus:border-indigo-500 resize-none"
+          className="w-full min-h-32 px-4 py-3 rounded-xl border border-gray-700 bg-gray-800/60 text-white placeholder-gray-400 outline-none focus:border-indigo-500 resize-none"
         />
       </section>
 
