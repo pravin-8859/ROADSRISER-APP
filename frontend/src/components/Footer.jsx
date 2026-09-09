@@ -356,10 +356,10 @@ export default function Footer() {
                   </p>
 
                   <a
-                    href="mailto:praviiiinn@gmail.com"
+                    href="mailto:support.roadsriser@gmail.com"
                     className="text-sm text-gray-300 hover:text-blue-400 transition break-all"
                   >
-                    praviiiinn@gmail.com
+                    support.roadsriser@gmail.com.com
                   </a>
                 </div>
               </div>
