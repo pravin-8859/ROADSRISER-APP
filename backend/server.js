@@ -12,6 +12,7 @@ import userRoutes from "./routes/userRoutes.js";
 import mechanicRoutes from "./routes/mechanicRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import mechanicForgotRoutes from "./routes/mechanicForgotRoutes.js";
+import contactRoutes from "./routes/contactRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -63,6 +64,8 @@ app.use(
   "/api/users",
   userRoutes
 );
+
+app.use("/api/contact", contactRoutes);
 
 app.use(
   "/api/mechanics",

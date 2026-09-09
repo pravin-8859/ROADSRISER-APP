@@ -1,5 +1,6 @@
 // src/pages/Contact.jsx
 import React, { useState } from "react";
+import { sendContactMessageApi } from "../api/userApi";
 import { Link } from "react-router-dom";
 import {
   FiArrowRight,
@@ -28,7 +29,7 @@ export default function Contact() {
     service: "",
     message: "",
   });
-
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const handleChange = (e) => {
@@ -40,11 +41,14 @@ export default function Contact() {
     setSubmitted(false);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    // Current frontend flow.
-    // Backend contact API can be connected here later.
+  try {
+    setSubmitting(true);
+
+    await sendContactMessageApi(formData);
+
     setSubmitted(true);
 
     setFormData({
@@ -52,9 +56,19 @@ export default function Contact() {
       email: "",
       phone: "",
       service: "",
-      message: "",
+      message: ""
     });
-  };
+  } catch (error) {
+    console.error("Contact form error:", error);
+
+    alert(
+      error.response?.data?.message ||
+        "Message send nahi hua. Please try again."
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const contactItems = [
     {
@@ -497,6 +511,7 @@ export default function Contact() {
               {/* Submit */}
               <button
                 type="submit"
+                disabled={submitting}
                 className="group flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 py-4 font-bold text-white shadow-xl shadow-blue-600/20 transition hover:-translate-y-1 hover:bg-blue-500"
               >
                 Send Message

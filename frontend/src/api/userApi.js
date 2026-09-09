@@ -1,5 +1,10 @@
 import API from "../services/api";
 
+export const sendContactMessageApi = async (data) => {
+  const response = await API.post("/contact", data);
+  return response.data;
+};
+
 // ================= USER AUTH =================
 
 export const loginUser = async (email, password) => {

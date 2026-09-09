@@ -5,6 +5,7 @@ import {
   FaTachometerAlt,
   FaUsers,
   FaTools,
+  FaEnvelope,
   FaFileAlt,
   FaChartBar,
   FaCog,
@@ -19,6 +20,11 @@ export default function Sidebar({ closeSidebar }) {
     { name: "Users", icon: <FaUsers />, path: "/admin/users" },
     { name: "Mechanics", icon: <FaTools />, path: "/admin/mechanics" },
     { name: "Requests", icon: <FaFileAlt />, path: "/admin/requests" },
+    {
+    name: "Contact Messages",
+    icon: <FaEnvelope />,
+    path: "/admin/contact-messages"
+  },
     { name: "Analytics", icon: <FaChartBar />, path: "/admin/analytics" },
     { name: "Reports", icon: <FaFileAlt />, path: "/admin/reports" },
     { name: "Settings", icon: <FaCog />, path: "/admin/settings" },
@@ -50,6 +56,7 @@ export default function Sidebar({ closeSidebar }) {
             >
               {item.icon} {item.name}
             </Link>
+
           </li>
         ))}
       </ul>

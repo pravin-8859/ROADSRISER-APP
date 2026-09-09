@@ -5,6 +5,7 @@ import AdminLayout from "./components/layout/AdminLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminContactMessages from "./pages/AdminContactMessages";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import UsersPage from "./pages/UsersPage";
 import MechanicsPage from "./pages/MechanicsPage";
@@ -37,42 +38,56 @@ export default function App() {
         path="/admin"
         element={<ProtectedRoute />}
       >
+        {/* ADMIN LAYOUT */}
         <Route
           element={<AdminLayout />}
         >
+          {/* DASHBOARD */}
           <Route
             index
             element={<AdminDashboard />}
           />
 
+          {/* USERS */}
           <Route
             path="users"
             element={<UsersPage />}
           />
 
+          {/* MECHANICS */}
           <Route
             path="mechanics"
             element={<MechanicsPage />}
           />
 
+          {/* REQUESTS */}
           <Route
             path="requests"
             element={<RequestsPage />}
           />
 
+          {/* ANALYTICS */}
           <Route
             path="analytics"
             element={<AdminAnalytics />}
           />
 
+          {/* REPORTS */}
           <Route
             path="reports"
             element={<ReportsPage />}
           />
 
+          {/* SETTINGS */}
           <Route
             path="settings"
             element={<SettingsPage />}
+          />
+
+          {/* CONTACT MESSAGES */}
+          <Route
+            path="contact-messages"
+            element={<AdminContactMessages />}
           />
         </Route>
       </Route>
