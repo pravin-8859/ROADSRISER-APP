@@ -4,26 +4,30 @@ import Admin from "../models/Admin.js";
 
 const createAdmin = async () => {
   try {
-    await mongoose.connect(
-      process.env.MONGO_URI
-    );
+    await mongoose.connect(process.env.MONGO_URI);
 
-    console.log(
-      "MongoDB connected"
-    );
+    console.log("MongoDB connected");
 
-    const email =
-      "admin@roadsriser.com";
+    const email = "admin@roadsriser.com";
+    const password = process.env.ADMIN_PASSWORD;
 
-    const existing =
-      await Admin.findOne({
-        email,
-      });
+    if (!password) {
+      throw new Error("ADMIN_PASSWORD is missing");
+    }
+
+    if (password.length < 8) {
+      throw new Error("ADMIN_PASSWORD must be at least 8 characters");
+    }
+
+    const existing = await Admin.findOne({ email });
 
     if (existing) {
-      console.log(
-        "Admin already exists"
-      );
+      console.log("Admin already exists. Updating password...");
+
+      existing.password = password;
+      await existing.save();
+
+      console.log("Admin password updated successfully");
 
       await mongoose.disconnect();
       return;
@@ -32,32 +36,18 @@ const createAdmin = async () => {
     const admin = new Admin({
       name: "RoadsRiser Admin",
       email,
-      password: "Admin@12345",
+      password,
       role: "admin",
     });
 
     await admin.save();
 
-    console.log(
-      "Admin created successfully"
-    );
-
-    console.log(
-      "Email:",
-      email
-    );
-
-    console.log(
-      "Password: Admin@12345"
-    );
+    console.log("Admin created successfully");
+    console.log("Email:", email);
 
     await mongoose.disconnect();
   } catch (error) {
-    console.error(
-      "Admin creation failed:",
-      error
-    );
-
+    console.error("Admin setup failed:", error);
     process.exit(1);
   }
 };
