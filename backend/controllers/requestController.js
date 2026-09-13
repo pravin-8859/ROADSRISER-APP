@@ -600,6 +600,37 @@ export const getMechanicRequests = async (
   }
 };
 
+export const getMechanicEarnings = async (req, res) => {
+  try {
+    const mechanicId = req.mechanic?.id;
+
+    if (!mechanicId) {
+      return res.status(401).json({
+        message: "Mechanic authentication required",
+      });
+    }
+
+    const earnings = await Request.find({
+      mechanic: mechanicId,
+      status: "completed",
+    })
+      .populate("user", "name email phone")
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    return res.json({
+      success: true,
+      earnings,
+    });
+  } catch (error) {
+    console.error("getMechanicEarnings error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch mechanic earnings",
+    });
+  }
+};
+
 // =========================================================
 // MECHANIC - ACCEPT REQUEST
 // =========================================================

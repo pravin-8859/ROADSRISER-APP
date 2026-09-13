@@ -366,6 +366,9 @@ export const getMechanicRequests =
       "/mechanics/requests"
     );
 
+export const getMechanicEarnings = () =>
+  API.get("/mechanics/earnings");
+
 // Accept request
 export const acceptMechanicRequest =
   (id) =>

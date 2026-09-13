@@ -29,6 +29,7 @@ import {
 
 import {
   getMechanicRequests,
+  getMechanicEarnings,
   acceptMechanicRequest,
   updateMechanicRequestStatus,
   cancelMechanicRequest,
@@ -186,9 +187,6 @@ export default function DashboardMechanic() {
         savedInventory = inventoryKey
           ? JSON.parse(localStorage.getItem(inventoryKey) || "null")
           : null;
-        savedEarnings = earningsKey
-          ? JSON.parse(localStorage.getItem(earningsKey) || "null")
-          : null;
       } catch (storageError) {
         console.warn("Mechanic local storage read failed:", storageError);
       }
@@ -216,16 +214,10 @@ export default function DashboardMechanic() {
       ];
 
       setInventory(Array.isArray(savedInventory) ? savedInventory : defaultInventory);
-      setEarnings(Array.isArray(savedEarnings) ? savedEarnings : []);
 
       if (inventoryKey && !savedInventory) {
         localStorage.setItem(inventoryKey, JSON.stringify(defaultInventory));
       }
-
-      if (earningsKey && !savedEarnings) {
-        localStorage.setItem(earningsKey, "[]");
-      }
-
       setGarageLocation(mech.garageLocation || null);
       setAvailable(Boolean(mech.isOnline));
       localStorage.setItem(
@@ -599,6 +591,35 @@ const setAvailability = async (next) => {
     }
   };
 
+  const loadMechanicEarnings = async () => {
+  try {
+    const res = await getMechanicEarnings();
+
+    const completed = res?.data?.earnings || [];
+
+    const mappedEarnings = completed.map((request) => ({
+      id: request._id,
+      date: request.updatedAt || request.createdAt,
+      amount: Number(request.fare || 0),
+      customer:
+        request.user?.name ||
+        request.user?.email ||
+        "Customer",
+      service:
+        request.serviceType ||
+        request.problem ||
+        "Roadside Assistance",
+    }));
+
+    setEarnings(mappedEarnings);
+  } catch (error) {
+    console.error(
+      "Failed to load mechanic earnings:",
+      error?.response?.data || error
+    );
+  }
+};
+
   /* ============================= ACCEPT REQUEST ============================= */
 
   const acceptRequest = async (id) => {
@@ -727,24 +748,7 @@ const cancelRequest = async (id) => {
         job.id,
         "completed"
       );
-
-      const earning = {
-        id: Date.now(),
-        date: new Date().toISOString(),
-        amount: Number(job.estimatedCharge || 0),
-        customer: job.customer,
-        service: job.issue,
-      };
-
-      const updatedEarnings = [earning, ...earnings];
-
-      setEarnings(updatedEarnings);
-
-      const earningsKey = getMechanicStorageKey("mechanicEarnings");
-      if (earningsKey) {
-        localStorage.setItem(earningsKey, JSON.stringify(updatedEarnings));
-      }
-
+      await loadMechanicEarnings();
       setAssignedJobs((prev) =>
         prev.filter((item) => item.id !== job.id)
       );

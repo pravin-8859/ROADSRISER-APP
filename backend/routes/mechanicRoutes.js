@@ -20,6 +20,7 @@ import {
 
 import {
   getMechanicRequests,
+  getMechanicEarnings,
   acceptRequest,
   cancelMechanicRequest,
   updateRequestStatus,
@@ -71,6 +72,11 @@ router.get(
   "/requests",
   verifyMechanic,
   getMechanicRequests
+);
+router.get(
+  "/earnings",
+  verifyMechanic,
+  getMechanicEarnings
 );
 
 router.put(
