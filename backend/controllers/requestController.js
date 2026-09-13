@@ -3,6 +3,18 @@ import Request from "../models/Request.js";
 import Notification from "../models/Notification.js";
 import Mechanic from "../models/Mechanic.js";
 
+const SERVICE_FARES = {
+  "Engine Starting Issue": 399,
+  "Battery Dead": 349,
+  "Tyre Puncture": 249,
+  "Fuel Empty": 499,
+  "Overheating": 399,
+  "Brake Failure": 499,
+  "Electrical Fault": 449,
+  "Towing Needed": 999,
+  "Other Problem": 299,
+};
+
 // =========================================================
 // CONFIG
 // =========================================================
@@ -65,6 +77,8 @@ export const createRequest = async (req, res) => {
       problem,
       description,
     } = req.body;
+
+    const fare = SERVICE_FARES[problem] ?? 299;
 
     const userId = req.user?.id;
 
@@ -145,9 +159,9 @@ export const createRequest = async (req, res) => {
       vehicleType: vehicleType || "",
       problem: problem || "",
       description: description || "",
+      fare,
 
       mechanic: null,
-
       declinedMechanics: [],
 
       status: "pending",
